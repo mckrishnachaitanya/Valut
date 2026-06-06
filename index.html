@@ -1,212 +1,1377 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vault App</title>
-  <style>
-    /* --- Base styles --- */
-    body {
-      margin: 0;
-      font-family: system-ui, sans-serif;
-      background: var(--bg-color, #111);
-      color: var(--text-color, #fff);
-    }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<title>Vault</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════════════════════════
+   THEME VARIABLES
+═══════════════════════════════════ */
+:root {
+  --bg:        #f0f2f8;
+  --bg2:       #e4e8f2;
+  --surface:   rgba(255,255,255,0.72);
+  --surface2:  rgba(255,255,255,0.9);
+  --glass:     rgba(255,255,255,0.55);
+  --border:    rgba(180,190,220,0.5);
+  --accent:    #5b5ff5;
+  --accent-g:  linear-gradient(135deg,#5b5ff5,#8b5cf6);
+  --green:     #10b981;
+  --yellow:    #f59e0b;
+  --red:       #ef4444;
+  --pink:      #ec4899;
+  --text:      #1a1d2e;
+  --text2:     #4a4d6a;
+  --muted:     #9096b8;
+  --shadow:    0 8px 32px rgba(91,95,245,0.10);
+  --shadow-sm: 0 2px 12px rgba(91,95,245,0.08);
+  --font:      'Plus Jakarta Sans', sans-serif;
+  --mono:      'JetBrains Mono', monospace;
+  --radius:    20px;
+  --radius-sm: 14px;
+  --nav-h:     72px;
+}
+[data-theme="dark"] {
+  --bg:        #0f1117;
+  --bg2:       #161922;
+  --surface:   rgba(30,34,50,0.80);
+  --surface2:  rgba(36,40,58,0.95);
+  --glass:     rgba(30,34,50,0.60);
+  --border:    rgba(80,90,130,0.35);
+  --text:      #eef0ff;
+  --text2:     #9096b8;
+  --muted:     #555878;
+  --shadow:    0 8px 32px rgba(0,0,0,0.35);
+  --shadow-sm: 0 2px 12px rgba(0,0,0,0.25);
+}
 
-    header, footer {
-      height: 56px;
-      background: rgba(255,255,255,0.06);
-      display: flex;
-      align-items: center;
-      padding: 0 12px;
-    }
+/* ═══════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font);transition:background .3s,color .3s;}
 
-    main {
-      padding: 12px;
-    }
+/* Animated background */
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 70% 50% at 15% 10%,rgba(91,95,245,.10) 0%,transparent 65%),
+    radial-gradient(ellipse 55% 45% at 85% 85%,rgba(139,92,246,.07) 0%,transparent 65%),
+    radial-gradient(ellipse 40% 35% at 75% 20%,rgba(16,185,129,.05) 0%,transparent 60%);
+  transition:opacity .3s;
+}
 
-    /* --- Settings scroll fix --- */
-    .settings-container {
-      box-sizing: border-box;
-      overflow-y: auto !important;
-      -webkit-overflow-scrolling: touch;
-      scroll-behavior: smooth;
-      max-height: calc(100vh - 56px - 56px);
-      padding-bottom: 24px;
-    }
-    body.settings-open { overflow: visible !important; }
+/* ═══════════════════════════════════
+   SCREENS
+═══════════════════════════════════ */
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;overflow-y:auto;z-index:10;transition:opacity .22s,transform .22s;}
+.screen.hidden{opacity:0;pointer-events:none;transform:translateY(14px);}
+.screen>*{position:relative;z-index:1;}
 
-    /* --- Category pills fix --- */
-    .category-pills {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      padding: 8px 12px;
-      flex-wrap: wrap;
-      overflow: visible;
-      position: relative;
-    }
-    .category-pills .pill {
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.06);
-      white-space: nowrap;
-      cursor: pointer;
-    }
-    @media (max-width: 720px) {
-      .category-pills { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      .category-pills::after { content:""; flex:0 0 12px; }
-    }
-    .category-pills.scrollable::before,
-    .category-pills.scrollable::after {
-      content:"";
-      position:absolute; top:0; bottom:0; width:36px; pointer-events:none;
-    }
-    .category-pills.scrollable::before { left:0; background:linear-gradient(90deg,var(--bg-color,#111),transparent); }
-    .category-pills.scrollable::after { right:0; background:linear-gradient(270deg,var(--bg-color,#111),transparent); }
+/* ═══════════════════════════════════
+   PIN SCREEN
+═══════════════════════════════════ */
+#pin-screen{justify-content:center;align-items:center;padding:28px 24px;gap:28px;background:var(--bg);}
 
-    /* --- Search bar cancel button --- */
-    .search-bar {
-      display:flex; gap:8px; align-items:center;
-      padding:8px 12px; background:rgba(255,255,255,0.06);
-      border-radius:8px;
-    }
-    .search-bar input { flex:1; padding:6px; }
-    .search-bar button.cancel-btn {
-      background:rgba(255,255,255,0.12);
-      border:none; border-radius:4px; padding:6px 10px;
-      cursor:pointer;
-    }
+.vault-brand{text-align:center;}
+.brand-icon{
+  width:80px;height:80px;border-radius:24px;margin:0 auto 14px;
+  background:var(--accent-g);display:flex;align-items:center;justify-content:center;
+  font-size:38px;box-shadow:0 12px 40px rgba(91,95,245,.35);
+}
+.brand-name{font-size:28px;font-weight:800;color:var(--text);letter-spacing:-.5px;}
+.brand-sub{font-size:13px;color:var(--muted);margin-top:4px;}
 
-    /* --- Stats row --- */
-    .stats-row { display:flex; gap:12px; margin:12px 0; }
-    .stat-card {
-      flex:1; padding:12px; border-radius:8px;
-      background:rgba(255,255,255,0.06);
-      cursor:pointer; text-align:center;
-    }
+.pin-label{font-size:14px;font-weight:600;color:var(--text2);text-align:center;min-height:20px;transition:color .2s;}
+.pin-label.error{color:var(--red);}
+.pin-label.success{color:var(--green);}
 
-    /* --- Popup for category breakdown --- */
-    .popup {
-      position:fixed; top:50%; left:50%;
-      transform:translate(-50%,-50%);
-      background:#222; color:#fff;
-      padding:20px; border-radius:8px;
-      display:none; z-index:1000;
-    }
-    .popup.active { display:block; }
-    .popup h3 { margin-top:0; }
-    .popup button { margin-top:12px; }
-  </style>
+.pin-dots{display:flex;gap:14px;justify-content:center;}
+.pin-dot{width:13px;height:13px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all .15s;}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);box-shadow:0 0 10px rgba(91,95,245,.5);}
+.pin-dot.error{background:var(--red);border-color:var(--red);animation:shake .3s;}
+
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:264px;}
+.num-btn{
+  aspect-ratio:1;border-radius:50%;border:1.5px solid var(--border);
+  background:var(--surface);color:var(--text);font-size:22px;
+  font-family:var(--font);font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .12s;user-select:none;
+  box-shadow:var(--shadow-sm);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.num-btn:active{transform:scale(.89);background:var(--surface2);}
+.num-btn.del{font-size:18px;background:transparent;border-color:transparent;box-shadow:none;color:var(--muted);}
+.num-btn.del:active{color:var(--text);}
+.num-btn.empty{background:transparent;border:none;pointer-events:none;box-shadow:none;}
+
+/* ═══════════════════════════════════
+   TOP BAR
+═══════════════════════════════════ */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:52px 20px 14px;
+  background:var(--bg);
+  position:sticky;top:0;z-index:20;
+}
+.topbar h2{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.4px;}
+.topbar-actions{display:flex;gap:8px;}
+.icon-btn{
+  width:40px;height:40px;border-radius:13px;
+  background:var(--surface);border:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:17px;transition:all .14s;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:var(--shadow-sm);
+}
+.icon-btn:active{transform:scale(.91);}
+
+/* ═══════════════════════════════════
+   BOTTOM NAV
+═══════════════════════════════════ */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  height:var(--nav-h);
+  background:var(--surface2);
+  border-top:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:space-around;
+  z-index:50;padding-bottom:8px;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+}
+.nav-item{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  cursor:pointer;padding:6px 16px;border-radius:14px;
+  transition:all .15s;flex:1;
+}
+.nav-item .nav-icon{font-size:21px;transition:transform .15s;}
+.nav-item .nav-label{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.3px;transition:color .15s;}
+.nav-item.active .nav-label{color:var(--accent);}
+.nav-item.active .nav-icon{transform:scale(1.12);}
+.nav-add{
+  width:52px;height:52px;border-radius:17px;
+  background:var(--accent-g);border:none;color:#fff;
+  font-size:26px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 24px rgba(91,95,245,.4);
+  transition:all .14s;flex-shrink:0;
+}
+.nav-add:active{transform:scale(.9);}
+
+/* ═══════════════════════════════════
+   HOME
+═══════════════════════════════════ */
+#home-screen{background:var(--bg);}
+
+.home-header{padding:52px 20px 0;}
+.home-greeting{font-size:13px;color:var(--muted);font-weight:500;}
+.home-title{font-size:26px;font-weight:800;color:var(--text);letter-spacing:-.5px;margin-top:2px;}
+
+.stats-row{display:flex;gap:10px;padding:16px 20px;}
+.stat-card{
+  flex:1;padding:14px 16px;border-radius:var(--radius-sm);
+  background:var(--surface);border:1.5px solid var(--border);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:var(--shadow-sm);
+}
+.stat-card.tappable{cursor:pointer;transition:all .14s;}
+.stat-card.tappable:active{transform:scale(.94);background:var(--surface2);}
+.stat-num{font-size:22px;font-weight:800;color:var(--accent);}
+.stat-label{font-size:11px;color:var(--muted);margin-top:2px;font-weight:500;}
+
+/* Backup nudge */
+.backup-nudge{
+  margin:0 20px 12px;padding:13px 16px;border-radius:var(--radius-sm);
+  background:rgba(245,158,11,.12);border:1.5px solid rgba(245,158,11,.35);
+  display:flex;align-items:center;gap:10px;
+}
+.backup-nudge-text{flex:1;font-size:13px;font-weight:600;color:var(--yellow);}
+.backup-nudge-text span{display:block;font-size:11px;font-weight:500;color:var(--text2);margin-top:2px;}
+.backup-nudge-btn{padding:6px 13px;border-radius:9px;border:1.5px solid rgba(245,158,11,.4);background:rgba(245,158,11,.15);color:var(--yellow);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;white-space:nowrap;}
+.backup-nudge-dismiss{background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:2px 6px;line-height:1;}
+
+/* Categories bottom sheet */
+.sheet-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.sheet-overlay.visible{opacity:1;pointer-events:all;}
+.bottom-sheet{
+  position:fixed;bottom:0;left:0;right:0;z-index:201;
+  background:var(--surface2);border-radius:24px 24px 0 0;
+  border-top:1.5px solid var(--border);
+  padding:0 20px 36px;
+  transform:translateY(100%);transition:transform .3s cubic-bezier(.32,1,.28,1);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+}
+.bottom-sheet.open{transform:translateY(0);}
+.sheet-handle{width:40px;height:4px;border-radius:2px;background:var(--border);margin:14px auto 20px;}
+.sheet-title{font-size:17px;font-weight:800;color:var(--text);margin-bottom:16px;}
+.cat-breakdown-list{display:flex;flex-direction:column;gap:10px;}
+.cat-breakdown-item{
+  display:flex;align-items:center;gap:12px;padding:13px 16px;
+  border-radius:var(--radius-sm);background:var(--surface);
+  border:1.5px solid var(--border);
+}
+.cat-breakdown-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.cat-breakdown-name{flex:1;font-size:14px;font-weight:700;color:var(--text);}
+.cat-breakdown-count{font-size:20px;font-weight:800;color:var(--accent);}
+
+/* Search wrap with cancel button */
+.search-wrap{padding:0 20px 12px;position:relative;display:flex;align-items:center;gap:0;}
+.search-input-wrap{flex:1;position:relative;}
+.search-wrap input{
+  width:100%;padding:13px 16px 13px 44px;border-radius:var(--radius-sm);
+  background:var(--surface);border:1.5px solid var(--border);color:var(--text);
+  font-family:var(--font);font-size:14px;outline:none;transition:border .2s;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:var(--shadow-sm);
+}
+.search-wrap input:focus{border-color:var(--accent);}
+.search-wrap input::placeholder{color:var(--muted);}
+.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--muted);pointer-events:none;}
+.search-cancel{
+  display:none;padding:8px 0 8px 12px;border:none;
+  background:transparent;color:var(--accent);font-family:var(--font);
+  font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;
+}
+.search-cancel.visible{display:block;}
+
+.filter-row{display:flex;gap:8px;padding:0 20px 14px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.filter-row::-webkit-scrollbar{display:none;}
+.pill{
+  padding:7px 15px;border-radius:20px;border:1.5px solid var(--border);
+  background:var(--surface);color:var(--muted);font-size:12px;font-weight:700;
+  white-space:nowrap;cursor:pointer;transition:all .14s;flex-shrink:0;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  min-height:34px;display:flex;align-items:center;
+}
+.pill.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(91,95,245,.3);}
+
+.sort-row{display:flex;align-items:center;justify-content:space-between;padding:0 20px 10px;}
+.sort-label{font-size:12px;color:var(--muted);font-weight:600;}
+.sort-select{
+  font-size:12px;font-weight:700;color:var(--accent);font-family:var(--font);
+  background:transparent;border:none;outline:none;cursor:pointer;
+}
+
+.entries-list{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h) + 20px);}
+
+/* Glass entry card */
+.entry-card{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);
+  padding:15px 16px;display:flex;align-items:center;gap:13px;cursor:pointer;
+  transition:all .15s;position:relative;overflow:hidden;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:var(--shadow-sm);
+}
+.entry-card::after{content:'';position:absolute;inset:0;border-radius:var(--radius);background:linear-gradient(135deg,rgba(255,255,255,.06),transparent);pointer-events:none;}
+.entry-card:active{transform:scale(.975);box-shadow:none;}
+
+/* category accent strip */
+.entry-card::before{content:'';position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;}
+.cat-social::before{background:var(--accent);}
+.cat-banking::before{background:var(--green);}
+.cat-work::before{background:var(--yellow);}
+.cat-email::before{background:var(--pink);}
+.cat-other::before{background:var(--muted);}
+
+.entry-avatar{
+  width:44px;height:44px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;
+}
+.cat-social .entry-avatar{background:rgba(91,95,245,.14);}
+.cat-banking .entry-avatar{background:rgba(16,185,129,.14);}
+.cat-work .entry-avatar{background:rgba(245,158,11,.14);}
+.cat-email .entry-avatar{background:rgba(236,72,153,.14);}
+.cat-other .entry-avatar{background:rgba(144,150,184,.14);}
+
+.entry-info{flex:1;min-width:0;}
+.entry-name{font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
+.entry-user{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.entry-pw-preview{font-size:13px;color:var(--muted);letter-spacing:3px;margin-top:3px;}
+.entry-meta{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.fav-star{font-size:16px;cursor:pointer;transition:transform .15s;}
+.fav-star:active{transform:scale(1.3);}
+.entry-arrow{color:var(--muted);font-size:16px;}
+.entry-updated{font-size:10px;color:var(--muted);margin-top:2px;}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-icon{font-size:52px;display:block;margin-bottom:14px;opacity:.35;}
+.empty-state p{font-size:14px;font-weight:500;line-height:1.6;}
+
+/* ═══════════════════════════════════
+   FORM SCREEN
+═══════════════════════════════════ */
+#form-screen{background:var(--bg);}
+.form-body{padding:0 20px;padding-bottom:calc(var(--nav-h)+20px);display:flex;flex-direction:column;gap:14px;}
+
+.field-group{display:flex;flex-direction:column;gap:6px;}
+.field-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.9px;text-transform:uppercase;}
+.field-input{
+  width:100%;padding:14px 16px;border-radius:var(--radius-sm);
+  background:var(--surface);border:1.5px solid var(--border);color:var(--text);
+  font-family:var(--font);font-size:15px;outline:none;transition:border .2s;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  -webkit-appearance:none;box-shadow:var(--shadow-sm);
+}
+.field-input:focus{border-color:var(--accent);}
+.field-input::placeholder{color:var(--muted);}
+select.field-input{cursor:pointer;}
+select.field-input option{background:var(--bg2);color:var(--text);}
+
+.pw-wrapper{position:relative;}
+.pw-wrapper .field-input{padding-right:90px;}
+.pw-actions{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:flex;gap:4px;}
+.pw-icon-btn{background:transparent;border:none;color:var(--muted);font-size:17px;cursor:pointer;padding:4px;transition:color .15s;}
+.pw-icon-btn:active{color:var(--accent);}
+
+.strength-bar{height:5px;border-radius:5px;background:var(--border);overflow:hidden;margin-top:7px;}
+.strength-fill{height:100%;border-radius:5px;transition:width .3s,background .3s;width:0;}
+.strength-label{font-size:11px;margin-top:4px;font-weight:700;}
+
+/* Custom fields */
+.custom-fields-list{display:flex;flex-direction:column;gap:8px;}
+.custom-field-row{display:flex;gap:8px;align-items:center;}
+.custom-field-row .field-input{flex:1;}
+.cf-name{max-width:110px !important;}
+.cf-del{width:36px;height:36px;border-radius:10px;background:rgba(239,68,68,.1);border:1.5px solid rgba(239,68,68,.25);color:var(--red);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .14s;}
+.cf-del:active{background:rgba(239,68,68,.2);}
+.add-field-btn{display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:var(--radius-sm);border:1.5px dashed var(--border);background:transparent;color:var(--accent);font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;transition:all .14s;width:100%;}
+.add-field-btn:active{background:rgba(91,95,245,.07);}
+
+.btn-primary{
+  width:100%;padding:16px;border-radius:var(--radius);border:none;
+  background:var(--accent-g);color:#fff;font-family:var(--font);
+  font-size:16px;font-weight:700;cursor:pointer;transition:all .14s;
+  box-shadow:0 6px 24px rgba(91,95,245,.35);
+}
+.btn-primary:active{transform:scale(.97);opacity:.9;}
+.btn-danger{
+  width:100%;padding:14px;border-radius:var(--radius);border:1.5px solid rgba(239,68,68,.35);
+  background:rgba(239,68,68,.07);color:var(--red);font-family:var(--font);
+  font-size:15px;font-weight:700;cursor:pointer;transition:all .14s;
+}
+.btn-danger:active{background:rgba(239,68,68,.15);}
+.hidden{display:none!important;}
+
+/* ═══════════════════════════════════
+   DETAIL SCREEN
+═══════════════════════════════════ */
+#detail-screen{background:var(--bg);}
+
+.detail-hero{
+  margin:0 20px 16px;padding:22px;border-radius:var(--radius);
+  background:var(--surface);border:1.5px solid var(--border);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:var(--shadow);text-align:center;position:relative;
+}
+.detail-top-actions{position:absolute;top:14px;right:14px;display:flex;gap:8px;align-items:center;}
+.detail-icon-btn{
+  width:36px;height:36px;border-radius:11px;border:1.5px solid var(--border);
+  background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;
+  transition:all .14s;
+}
+.detail-icon-btn:active{transform:scale(.88);background:var(--surface2);}
+.detail-avatar{font-size:40px;margin-bottom:10px;display:block;}
+.detail-name{font-size:22px;font-weight:800;color:var(--text);}
+.detail-cat-badge{
+  display:inline-block;margin-top:6px;padding:4px 12px;border-radius:20px;
+  font-size:11px;font-weight:700;letter-spacing:.5px;
+}
+.detail-updated{font-size:11px;color:var(--muted);margin-top:8px;}
+
+.detail-fields{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h)+20px);}
+.detail-field{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  padding:14px 16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:var(--shadow-sm);
+}
+.detail-field-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.9px;text-transform:uppercase;margin-bottom:7px;}
+.detail-field-row{display:flex;align-items:center;gap:10px;}
+.detail-field-value{flex:1;font-size:15px;word-break:break-all;color:var(--text);font-family:var(--font);}
+.detail-field-value.masked{letter-spacing:5px;font-size:17px;color:var(--muted);}
+.copy-btn{
+  padding:7px 14px;border-radius:9px;background:var(--bg2);border:1.5px solid var(--border);
+  color:var(--text2);font-size:12px;font-family:var(--font);font-weight:700;
+  cursor:pointer;white-space:nowrap;transition:all .14s;flex-shrink:0;
+}
+.copy-btn:active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.copy-btn.copied{background:var(--green);border-color:var(--green);color:#fff;}
+
+.detail-actions{display:flex;gap:10px;padding:0 20px 12px;}
+.btn-secondary{
+  flex:1;padding:14px;border-radius:var(--radius);
+  border:1.5px solid var(--border);background:var(--surface);color:var(--text);
+  font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;
+  transition:all .14s;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.btn-secondary:active{background:var(--surface2);}
+
+/* ═══════════════════════════════════
+   FAVOURITES SCREEN
+═══════════════════════════════════ */
+#fav-screen{background:var(--bg);}
+#fav-screen .entries-list{padding-bottom:calc(var(--nav-h)+20px);}
+
+/* ═══════════════════════════════════
+   SETTINGS SCREEN
+═══════════════════════════════════ */
+#settings-screen{background:var(--bg);overflow-y:auto;}
+.settings-body{padding:0 20px;padding-bottom:calc(var(--nav-h)+20px);display:flex;flex-direction:column;gap:8px;}
+.settings-section-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.9px;text-transform:uppercase;margin:10px 0 4px;}
+.settings-item{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  padding:15px 16px;display:flex;align-items:center;gap:13px;cursor:pointer;
+  transition:all .14s;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:var(--shadow-sm);
+}
+.settings-item:active{background:var(--surface2);}
+.s-icon{font-size:20px;width:34px;text-align:center;}
+.s-info{flex:1;}
+.s-title{font-weight:700;font-size:15px;color:var(--text);}
+.s-desc{font-size:12px;color:var(--muted);margin-top:2px;}
+.s-arrow{color:var(--muted);font-size:18px;}
+.theme-toggle{
+  width:46px;height:26px;border-radius:13px;border:none;cursor:pointer;
+  background:var(--border);position:relative;transition:background .25s;flex-shrink:0;
+}
+.theme-toggle.on{background:var(--accent);}
+.theme-toggle::after{
+  content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;
+  border-radius:50%;background:#fff;transition:transform .25s;
+  box-shadow:0 1px 4px rgba(0,0,0,.2);
+}
+.theme-toggle.on::after{transform:translateX(20px);}
+
+/* ═══════════════════════════════════
+   TOAST
+═══════════════════════════════════ */
+#toast{
+  position:fixed;bottom:calc(var(--nav-h) + 14px);left:50%;
+  transform:translateX(-50%) translateY(16px);
+  background:var(--text);color:var(--bg);
+  padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;
+  z-index:999;opacity:0;transition:all .22s;white-space:nowrap;pointer-events:none;
+  box-shadow:0 6px 24px rgba(0,0,0,.2);
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ═══════════════════════════════════
+   LOCK OVERLAY
+═══════════════════════════════════ */
+#lock-overlay{
+  position:fixed;inset:0;background:var(--bg);z-index:500;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  opacity:0;pointer-events:none;transition:opacity .3s;
+}
+#lock-overlay.visible{opacity:1;pointer-events:all;}
+.lock-icon-wrap{
+  width:80px;height:80px;border-radius:24px;background:var(--accent-g);
+  display:flex;align-items:center;justify-content:center;font-size:36px;
+  box-shadow:0 12px 40px rgba(91,95,245,.35);
+}
+#lock-overlay p{color:var(--muted);font-size:14px;font-weight:600;}
+
+/* ═══════════════════════════════════
+   ANIMATIONS
+═══════════════════════════════════ */
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}60%{transform:translateX(7px)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.entry-card{animation:fadeUp .2s ease both;}
+</style>
 </head>
 <body>
-  <header>
-    <h1>Vault</h1>
-  </header>
 
-  <main>
-    <!-- Search bar -->
-    <div class="search-bar">
-      <input type="text" id="searchInput" placeholder="Search entries...">
-      <button class="cancel-btn" id="cancelSearch">Cancel</button>
+<!-- ══════════ PIN SCREEN ══════════ -->
+<div class="screen" id="pin-screen">
+  <div class="vault-brand">
+    <div class="brand-icon">🔐</div>
+    <div class="brand-name">Vault</div>
+    <div class="brand-sub" id="pin-subtitle">Your private password vault</div>
+  </div>
+  <div class="pin-label" id="pin-label">Enter your 6-digit PIN</div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="d0"></div><div class="pin-dot" id="d1"></div>
+    <div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div>
+    <div class="pin-dot" id="d4"></div><div class="pin-dot" id="d5"></div>
+  </div>
+  <div class="numpad">
+    <button class="num-btn" data-n="1">1</button><button class="num-btn" data-n="2">2</button><button class="num-btn" data-n="3">3</button>
+    <button class="num-btn" data-n="4">4</button><button class="num-btn" data-n="5">5</button><button class="num-btn" data-n="6">6</button>
+    <button class="num-btn" data-n="7">7</button><button class="num-btn" data-n="8">8</button><button class="num-btn" data-n="9">9</button>
+    <button class="num-btn empty"></button><button class="num-btn" data-n="0">0</button>
+    <button class="num-btn del" id="del-btn">⌫</button>
+  </div>
+</div>
+
+<!-- ══════════ HOME SCREEN ══════════ -->
+<div class="screen hidden" id="home-screen">
+  <div class="home-header">
+    <div class="home-greeting">Welcome back 👋</div>
+    <div class="home-title">My Vault</div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total Entries</div></div>
+    <div class="stat-card tappable" id="stat-fav-card"><div class="stat-num" id="stat-fav">0</div><div class="stat-label">Favourites</div></div>
+    <div class="stat-card tappable" id="stat-cats-card"><div class="stat-num" id="stat-cats">0</div><div class="stat-label">Categories</div></div>
+  </div>
+  <div id="backup-nudge-wrap"></div>
+  <div class="search-wrap">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" placeholder="Search entries..."/>
+    </div>
+    <button class="search-cancel" id="search-cancel">Cancel</button>
+  </div>
+  <div class="filter-row" id="cat-pills">
+    <div class="pill active" data-cat="all">All</div>
+    <div class="pill" data-cat="social">📱 Social</div>
+    <div class="pill" data-cat="banking">🏦 Banking</div>
+    <div class="pill" data-cat="work">💼 Work</div>
+    <div class="pill" data-cat="email">📧 Email</div>
+    <div class="pill" data-cat="other">📁 Other</div>
+  </div>
+  <div class="sort-row">
+    <span class="sort-label">Sort by</span>
+    <select class="sort-select" id="sort-select">
+      <option value="newest">Newest</option>
+      <option value="oldest">Oldest</option>
+      <option value="az">A → Z</option>
+      <option value="za">Z → A</option>
+      <option value="updated">Last Updated</option>
+    </select>
+  </div>
+  <div class="entries-list" id="entries-list"></div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <div class="nav-item active" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
+    <div class="nav-item" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
+    <button class="nav-add" id="add-btn">+</button>
+    <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
+    <div class="nav-item" id="lock-nav-btn"><div class="nav-icon">🔒</div><div class="nav-label">LOCK</div></div>
+  </div>
+</div>
+
+<!-- ══════════ FAVOURITES SCREEN ══════════ -->
+<div class="screen hidden" id="fav-screen">
+  <div class="topbar"><h2>⭐ Starred</h2><div style="width:40px"></div></div>
+  <div class="entries-list" id="fav-list"></div>
+  <div class="bottom-nav">
+    <div class="nav-item" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
+    <div class="nav-item active" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
+    <button class="nav-add" id="add-btn-fav">+</button>
+    <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
+    <div class="nav-item" id="lock-nav-btn2"><div class="nav-icon">🔒</div><div class="nav-label">LOCK</div></div>
+  </div>
+</div>
+
+<!-- ══════════ FORM SCREEN ══════════ -->
+<div class="screen hidden" id="form-screen">
+  <div class="topbar">
+    <div class="icon-btn" id="form-back">←</div>
+    <h2 id="form-title">Add Entry</h2>
+    <div style="width:40px"></div>
+  </div>
+  <div class="form-body">
+    <div class="field-group">
+      <div class="field-label">App / Website Name</div>
+      <input class="field-input" id="f-name" placeholder="e.g. Instagram" autocomplete="off"/>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Category</div>
+      <select class="field-input" id="f-cat">
+        <option value="social">📱 Social</option>
+        <option value="banking">🏦 Banking</option>
+        <option value="work">💼 Work</option>
+        <option value="email">📧 Email</option>
+        <option value="other">📁 Other</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Username / Email</div>
+      <input class="field-input" id="f-user" placeholder="your@email.com" autocomplete="off" autocapitalize="none"/>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Password</div>
+      <div class="pw-wrapper">
+        <input class="field-input" id="f-pass" type="password" placeholder="Enter password" autocomplete="new-password"/>
+        <div class="pw-actions">
+          <button class="pw-icon-btn" id="pw-eye" title="Show/Hide">👁</button>
+        </div>
+      </div>
+      <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
+      <div class="strength-label" id="strength-label"></div>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Notes (optional)</div>
+      <input class="field-input" id="f-notes" placeholder="Any extra info..." autocomplete="off"/>
     </div>
 
-    <!-- Stats row -->
-    <div class="stats-row">
-      <div class="stat-card" id="favouritesStat">⭐ Favourites</div>
-      <div class="stat-card" id="categoriesStat">📂 Categories</div>
+    <!-- Custom Fields -->
+    <div class="field-group">
+      <div class="field-label">Custom Fields</div>
+      <div class="custom-fields-list" id="custom-fields-list"></div>
+      <button class="add-field-btn" id="add-cf-btn">＋ Add Custom Field</button>
     </div>
 
-    <!-- Category pills -->
-    <div class="category-pills" id="categoryPills">
-      <button class="pill">All</button>
-      <button class="pill">Banking</button>
-      <button class="pill">Insurance</button>
-      <button class="pill">Work</button>
-      <button class="pill">School</button>
+    <button class="btn-primary" id="form-save">Save Entry</button>
+    <button class="btn-danger hidden" id="form-delete">Delete Entry</button>
+  </div>
+</div>
+
+<!-- ══════════ DETAIL SCREEN ══════════ -->
+<div class="screen hidden" id="detail-screen">
+  <div class="topbar">
+    <div class="icon-btn" id="detail-back">←</div>
+    <h2>Details</h2>
+    <div style="width:40px"></div>
+  </div>
+  <div class="detail-hero">
+    <div class="detail-top-actions">
+      <button class="detail-icon-btn" id="detail-edit" title="Edit">✏️</button>
+      <button class="detail-icon-btn" id="detail-fav-btn" title="Star">☆</button>
     </div>
-
-    <!-- Settings -->
-    <div class="settings-container" id="settings">
-      <h2>Settings</h2>
-      <p>Options...</p>
-      <h3 id="about">About</h3>
-      <p>Vault App v2.0</p>
-    </div>
-  </main>
-
-  <footer>
-    <span>© 2026 Vault</span>
-  </footer>
-
-  <!-- Category breakdown popup -->
-  <div class="popup" id="categoriesPopup">
-    <h3>Category Breakdown</h3>
-    <div id="categoryBreakdown"></div>
-    <button id="closePopup">Close</button>
+    <span class="detail-avatar" id="d-avatar">📱</span>
+    <div class="detail-name" id="d-name"></div>
+    <span class="detail-cat-badge" id="d-cat"></span>
+    <div class="detail-updated" id="d-updated"></div>
   </div>
 
-  <script>
-    // --- Search bar cancel button ---
-    document.getElementById('cancelSearch').addEventListener('click', () => {
-      document.getElementById('searchInput').value = '';
-    });
+  <div class="detail-fields" id="detail-fields-container">
+    <div class="detail-field">
+      <div class="detail-field-label">Username / Email</div>
+      <div class="detail-field-row">
+        <div class="detail-field-value" id="d-user"></div>
+        <button class="copy-btn" data-copy="user">Copy</button>
+      </div>
+    </div>
+    <div class="detail-field">
+      <div class="detail-field-label">Password</div>
+      <div class="detail-field-row">
+        <div class="detail-field-value masked" id="d-pass">••••••••</div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="copy-btn" id="reveal-btn">Show</button>
+          <button class="copy-btn" data-copy="pass">Copy</button>
+        </div>
+      </div>
+    </div>
+    <div class="detail-field" id="d-notes-field">
+      <div class="detail-field-label">Notes</div>
+      <div class="detail-field-value" id="d-notes"></div>
+    </div>
+    <!-- custom fields rendered here -->
+    <div id="d-custom-fields"></div>
+  </div>
+</div>
 
-    // --- Favourites stat card jump ---
-    document.getElementById('favouritesStat').addEventListener('click', () => {
-      alert('Jumping to Starred tab...');
-      // Replace with actual tab switch logic
-    });
+<!-- ══════════ SETTINGS SCREEN ══════════ -->
+<div class="screen hidden" id="settings-screen">
+  <div class="topbar"><h2>Settings</h2><div style="width:40px"></div></div>
+  <div class="settings-body">
+    <div class="settings-section-label">Appearance</div>
+    <div class="settings-item" style="cursor:default">
+      <span class="s-icon">🌙</span>
+      <div class="s-info"><div class="s-title">Dark Mode</div><div class="s-desc">Switch between light and dark</div></div>
+      <button class="theme-toggle" id="theme-toggle"></button>
+    </div>
 
-    // --- Categories stat card breakdown ---
-    const categoriesStat = document.getElementById('categoriesStat');
-    const popup = document.getElementById('categoriesPopup');
-    const closePopup = document.getElementById('closePopup');
-    const breakdownDiv = document.getElementById('categoryBreakdown');
+    <div class="settings-section-label">Security</div>
+    <div class="settings-item" id="s-change-pin">
+      <span class="s-icon">🔑</span>
+      <div class="s-info"><div class="s-title">Change PIN</div><div class="s-desc">Update your 6-digit PIN</div></div>
+      <span class="s-arrow">›</span>
+    </div>
+    <div class="settings-item" id="s-lock">
+      <span class="s-icon">🔒</span>
+      <div class="s-info"><div class="s-title">Lock Vault</div><div class="s-desc">Lock immediately</div></div>
+      <span class="s-arrow">›</span>
+    </div>
 
-    categoriesStat.addEventListener('click', () => {
-      // Example breakdown counts
-      const counts = { Banking: 3, Insurance: 2, Work: 5, School: 4 };
-      breakdownDiv.innerHTML = Object.entries(counts)
-        .map(([cat, num]) => `<p>${cat}: ${num}</p>`).join('');
-      popup.classList.add('active');
-    });
-    closePopup.addEventListener('click', () => popup.classList.remove('active'));
+    <div class="settings-section-label">Backup</div>
+    <div class="settings-item" id="s-export">
+      <span class="s-icon">📤</span>
+      <div class="s-info"><div class="s-title">Export Backup</div><div class="s-desc">Save encrypted .vault file</div></div>
+      <span class="s-arrow">›</span>
+    </div>
+    <div class="settings-item" id="s-import">
+      <span class="s-icon">📥</span>
+      <div class="s-info"><div class="s-title">Import Backup</div><div class="s-desc">Restore from backup file</div></div>
+      <span class="s-arrow">›</span>
+    </div>
+    <input type="file" id="import-file" accept=".vault" style="display:none"/>
 
-    // --- Backup reminder every 30 days ---
-    const lastBackupKey = 'lastBackupDate';
-    function checkBackupReminder() {
-      const last = localStorage.getItem(lastBackupKey);
-      const now = Date.now();
-      if (!last || (now - parseInt(last)) > 30*24*60*60*1000) {
-        alert('Reminder: Please backup your vault!');
-        localStorage.setItem(lastBackupKey, now.toString());
-      }
+    <div class="settings-section-label">About</div>
+    <div class="settings-item" style="cursor:default">
+      <span class="s-icon">ℹ️</span>
+      <div class="s-info"><div class="s-title">Vault v2.0</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+    </div>
+  </div>
+  <div class="bottom-nav">
+    <div class="nav-item" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
+    <div class="nav-item" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
+    <button class="nav-add" id="add-btn-settings">+</button>
+    <div class="nav-item active" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
+    <div class="nav-item" id="lock-nav-btn3"><div class="nav-icon">🔒</div><div class="nav-label">LOCK</div></div>
+  </div>
+</div>
+
+<!-- ══════════ LOCK OVERLAY ══════════ -->
+<!-- ══════════ CATEGORIES BOTTOM SHEET ══════════ -->
+<div class="sheet-overlay" id="sheet-overlay"></div>
+<div class="bottom-sheet" id="cat-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">📊 Categories</div>
+  <div class="cat-breakdown-list" id="cat-breakdown-list"></div>
+</div>
+
+<div id="lock-overlay">
+  <div class="lock-icon-wrap">🔐</div>
+  <p>Vault locked</p>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+//  CRYPTO
+// ═══════════════════════════════════════
+const Crypto = {
+  enc: new TextEncoder(), dec: new TextDecoder(),
+  async hashPIN(pin) {
+    const buf = await crypto.subtle.digest('SHA-256', this.enc.encode(pin));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  },
+  async deriveKey(pin, salt) {
+    const km = await crypto.subtle.importKey('raw', this.enc.encode(pin), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'}, km, {name:'AES-GCM',length:256}, false, ['encrypt','decrypt']);
+  },
+  async encrypt(data, pin) {
+    const salt=crypto.getRandomValues(new Uint8Array(16)), iv=crypto.getRandomValues(new Uint8Array(12));
+    const key=await this.deriveKey(pin,salt);
+    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,this.enc.encode(JSON.stringify(data)));
+    const out=new Uint8Array(salt.length+iv.length+ct.byteLength);
+    out.set(salt,0); out.set(iv,16); out.set(new Uint8Array(ct),28);
+    return btoa(String.fromCharCode(...out));
+  },
+  async decrypt(b64, pin) {
+    const raw=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
+    const key=await this.deriveKey(pin,raw.slice(0,16));
+    const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:raw.slice(16,28)},key,raw.slice(28));
+    return JSON.parse(this.dec.decode(pt));
+  }
+};
+
+// ═══════════════════════════════════════
+//  STATE & STORAGE
+// ═══════════════════════════════════════
+let state = {
+  entries:[], currentPIN:'', unlocked:false, editId:null,
+  activeFilter:'all', pinBuffer:'', pinMode:'unlock',
+  pinTemp:'', failCount:0, currentNav:'home',
+};
+
+const Store = {
+  get(k){ return localStorage.getItem(k); },
+  set(k,v){ localStorage.setItem(k,v); },
+};
+
+let autoLockTimer=null;
+const AUTO_LOCK_MS = 2*60*1000;
+
+// ═══════════════════════════════════════
+//  THEME
+// ═══════════════════════════════════════
+function applyTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('theme-toggle').classList.toggle('on', dark);
+  Store.set('vault_theme', dark ? 'dark' : 'light');
+}
+document.getElementById('theme-toggle').addEventListener('click', () => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  applyTheme(!isDark);
+});
+
+// ═══════════════════════════════════════
+//  SCREENS & NAV
+// ═══════════════════════════════════════
+const SCREENS = ['pin-screen','home-screen','fav-screen','form-screen','detail-screen','settings-screen'];
+function showScreen(id) {
+  SCREENS.forEach(s => document.getElementById(s).classList.toggle('hidden', s!==id));
+}
+
+// Bottom nav
+document.querySelectorAll('[data-nav]').forEach(item => {
+  item.addEventListener('click', () => {
+    const nav = item.dataset.nav;
+    if(nav==='home'){ state.currentNav='home'; showScreen('home-screen'); renderEntries(); updateStats(); }
+    else if(nav==='fav'){ state.currentNav='fav'; showScreen('fav-screen'); renderFavs(); }
+    else if(nav==='settings'){ state.currentNav='settings'; showScreen('settings-screen'); }
+  });
+});
+document.getElementById('lock-nav-btn').addEventListener('click', lockVault);
+document.getElementById('lock-nav-btn2').addEventListener('click', lockVault);
+document.getElementById('lock-nav-btn3').addEventListener('click', lockVault);
+document.getElementById('add-btn-fav').addEventListener('click', () => openForm());
+document.getElementById('add-btn-settings').addEventListener('click', () => openForm());
+
+// ═══════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════
+let toastT;
+function toast(msg, dur=2200) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+// ═══════════════════════════════════════
+//  AUTO LOCK
+// ═══════════════════════════════════════
+function resetAutoLock() {
+  clearTimeout(autoLockTimer);
+  if(!state.unlocked) return;
+  autoLockTimer = setTimeout(lockVault, AUTO_LOCK_MS);
+}
+function lockVault() {
+  state.unlocked=false; state.currentPIN='';
+  clearTimeout(autoLockTimer);
+  const ov=document.getElementById('lock-overlay');
+  ov.classList.add('visible');
+  setTimeout(()=>{ ov.classList.remove('visible'); initPINScreen('unlock'); showScreen('pin-screen'); },700);
+}
+document.addEventListener('touchstart', resetAutoLock);
+document.addEventListener('click', resetAutoLock);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state.unlocked) lockVault(); });
+
+// ═══════════════════════════════════════
+//  PIN SCREEN
+// ═══════════════════════════════════════
+function initPINScreen(mode) {
+  state.pinMode=mode; state.pinBuffer=''; updatePINDots();
+  const lbl=document.getElementById('pin-label'), sub=document.getElementById('pin-subtitle');
+  lbl.className='pin-label';
+  const msgs = {
+    'setup':'Create a 6-digit PIN','setup-confirm':'Confirm your PIN',
+    'change-old':'Enter current PIN','change-new':'Enter new PIN','change-confirm':'Confirm new PIN',
+    'unlock':'Enter your PIN'
+  };
+  lbl.textContent = msgs[mode] || 'Enter your PIN';
+  sub.textContent = mode==='setup' ? 'You will use this to unlock your vault' : 'Your private password vault';
+  if(mode==='unlock'){
+    const lock = parseInt(Store.get('vault_lockout')||'0');
+    if(Date.now()<lock){ const s=Math.ceil((lock-Date.now())/1000); lbl.textContent=`Too many attempts. Wait ${s}s`; lbl.classList.add('error'); }
+  }
+}
+
+function updatePINDots(err=false) {
+  for(let i=0;i<6;i++){
+    const d=document.getElementById('d'+i);
+    d.classList.toggle('filled', i<state.pinBuffer.length && !err);
+    d.classList.toggle('error', err);
+  }
+}
+
+function pinError(msg) {
+  updatePINDots(true);
+  const lbl=document.getElementById('pin-label');
+  lbl.textContent=msg; lbl.className='pin-label error';
+  setTimeout(()=>{ state.pinBuffer=''; updatePINDots(false); lbl.className='pin-label'; },900);
+}
+
+async function handlePINDigit(d) {
+  const lock=parseInt(Store.get('vault_lockout')||'0');
+  if(state.pinMode==='unlock' && Date.now()<lock){ pinError(`Locked. Wait ${Math.ceil((lock-Date.now())/1000)}s`); return; }
+  if(state.pinBuffer.length>=6) return;
+  state.pinBuffer+=d; updatePINDots();
+  if(state.pinBuffer.length<6) return;
+  const entered=state.pinBuffer;
+  await new Promise(r=>setTimeout(r,120));
+
+  if(state.pinMode==='setup'){
+    state.pinTemp=entered; initPINScreen('setup-confirm');
+  } else if(state.pinMode==='setup-confirm'){
+    if(entered!==state.pinTemp){ pinError('PINs do not match'); return; }
+    Store.set('vault_pin', await Crypto.hashPIN(entered));
+    state.currentPIN=entered; state.entries=[];
+    await saveEntries(); unlockSuccess();
+  } else if(state.pinMode==='unlock'){
+    const hash=await Crypto.hashPIN(entered);
+    if(hash!==Store.get('vault_pin')){
+      let f=(parseInt(Store.get('vault_fails')||'0'))+1; Store.set('vault_fails',f);
+      if(f>=5){ Store.set('vault_lockout',Date.now()+30000); Store.set('vault_fails',0); pinError('Locked for 30s'); }
+      else pinError(`Wrong PIN · ${5-f} left`);
+      return;
     }
-    checkBackupReminder();
+    Store.set('vault_fails',0);
+    try{ const enc=Store.get('vault_data'); state.entries=enc?await Crypto.decrypt(enc,entered):[]; }
+    catch(e){ state.entries=[]; }
+    state.currentPIN=entered; unlockSuccess();
+  } else if(state.pinMode==='change-old'){
+    if(await Crypto.hashPIN(entered)!==Store.get('vault_pin')){ pinError('Wrong PIN'); return; }
+    state.pinTemp=entered; initPINScreen('change-new'); showScreen('pin-screen');
+  } else if(state.pinMode==='change-new'){
+    state.pinTemp=entered; initPINScreen('change-confirm');
+  } else if(state.pinMode==='change-confirm'){
+    if(entered!==state.pinTemp){ pinError('PINs do not match'); return; }
+    Store.set('vault_pin', await Crypto.hashPIN(entered));
+    state.currentPIN=entered; await saveEntries();
+    toast('PIN changed ✓'); showScreen('settings-screen');
+  }
+}
 
-    // --- Category pills scrollable state ---
-    const container = document.getElementById('categoryPills');
-    function updateScrollableState() {
-      if (container.scrollWidth > container.clientWidth + 1) {
-        container.classList.add('scrollable');
-      } else {
-        container.classList.remove('scrollable');
-      }
-    }
-    updateScrollableState();
-    window.addEventListener('resize', updateScrollableState);
+function unlockSuccess() {
+  state.unlocked=true;
+  const lbl=document.getElementById('pin-label');
+  lbl.textContent='✓ Unlocked'; lbl.className='pin-label success';
+  applyTheme(Store.get('vault_theme')==='dark');
+  setTimeout(()=>{ showScreen('home-screen'); renderEntries(); updateStats(); resetAutoLock(); checkBackupNudge(); },300);
+}
 
-    // --- Settings scroll fix (auto scroll to About) ---
-    const settingsEl = document.getElementById('settings');
-    function onSettingsOpen() {
-      document.body.classList.add('settings-open');
-      const aboutAnchor = document.getElementById('about');
-      if (aboutAnchor) {
-        setTimeout(() => aboutAnchor.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
-      }
-    }
-    onSettingsOpen();
-  </script>
+document.querySelectorAll('.num-btn[data-n]').forEach(b=>b.addEventListener('click',()=>handlePINDigit(b.dataset.n)));
+document.getElementById('del-btn').addEventListener('click',()=>{ state.pinBuffer=state.pinBuffer.slice(0,-1); updatePINDots(); });
+
+// ═══════════════════════════════════════
+//  ENTRIES
+// ═══════════════════════════════════════
+async function saveEntries() {
+  Store.set('vault_data', await Crypto.encrypt(state.entries, state.currentPIN));
+}
+
+const CAT_EMOJI = {social:'📱',banking:'🏦',work:'💼',email:'📧',other:'📁'};
+const CAT_COLOR = {social:'#5b5ff5',banking:'#10b981',work:'#f59e0b',email:'#ec4899',other:'#9096b8'};
+const CAT_BG    = {social:'rgba(91,95,245,.15)',banking:'rgba(16,185,129,.15)',work:'rgba(245,158,11,.15)',email:'rgba(236,72,153,.15)',other:'rgba(144,150,184,.15)'};
+
+function timeAgo(ts) {
+  if(!ts) return '';
+  const s=Math.floor((Date.now()-ts)/1000);
+  if(s<60) return 'just now';
+  const m=Math.floor(s/60); if(m<60) return `${m}m ago`;
+  const h=Math.floor(m/60); if(h<24) return `${h}h ago`;
+  const dd=Math.floor(h/24); if(dd<30) return `${dd}d ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+function getSorted(entries) {
+  const mode=document.getElementById('sort-select').value;
+  const arr=[...entries];
+  if(mode==='az') return arr.sort((a,b)=>a.name.localeCompare(b.name));
+  if(mode==='za') return arr.sort((a,b)=>b.name.localeCompare(a.name));
+  if(mode==='oldest') return arr.sort((a,b)=>a.created-b.created);
+  if(mode==='updated') return arr.sort((a,b)=>(b.updated||0)-(a.updated||0));
+  return arr.sort((a,b)=>b.created-a.created); // newest
+}
+
+function renderEntries() {
+  const list=document.getElementById('entries-list');
+  const search=document.getElementById('search-input').value.toLowerCase();
+  const filter=state.activeFilter;
+  let entries=state.entries.filter(e=>{
+    const mc=filter==='all'||e.category===filter;
+    const ms=!search||e.name.toLowerCase().includes(search)||(e.username||'').toLowerCase().includes(search);
+    return mc&&ms;
+  });
+  // Favourites first
+  entries.sort((a,b)=>(b.fav?1:0)-(a.fav?1:0));
+  entries=getSorted(entries.filter(e=>e.fav)).concat(getSorted(entries.filter(e=>!e.fav)));
+
+  if(!entries.length){
+    list.innerHTML=`<div class="empty-state"><span class="empty-icon">🔒</span><p>${search?'No results found':'No entries yet.<br>Tap + to add one'}</p></div>`;
+    return;
+  }
+  list.innerHTML=entries.map((e,i)=>`
+    <div class="entry-card cat-${e.category}" data-id="${e.id}" style="animation-delay:${i*.04}s">
+      <div class="entry-avatar">${CAT_EMOJI[e.category]}</div>
+      <div class="entry-info">
+        <div class="entry-name">${esc(e.name)}</div>
+        <div class="entry-user">${esc(e.username||'—')}</div>
+        <div class="entry-pw-preview">••••••••</div>
+        <div class="entry-updated">Updated ${timeAgo(e.updated||e.created)}</div>
+      </div>
+      <div class="entry-meta">
+        <span class="fav-star" data-fav="${e.id}">${e.fav?'⭐':'☆'}</span>
+        <span class="entry-arrow">›</span>
+      </div>
+    </div>`).join('');
+
+  list.querySelectorAll('.entry-card').forEach(c=>c.addEventListener('click',ev=>{
+    if(ev.target.classList.contains('fav-star')) return;
+    openDetail(c.dataset.id);
+  }));
+  list.querySelectorAll('.fav-star').forEach(s=>s.addEventListener('click',async ev=>{
+    ev.stopPropagation();
+    const entry=state.entries.find(e=>e.id===s.dataset.fav);
+    if(!entry) return;
+    entry.fav=!entry.fav;
+    await saveEntries(); renderEntries(); updateStats();
+  }));
+}
+
+function renderFavs() {
+  const list=document.getElementById('fav-list');
+  const favs=state.entries.filter(e=>e.fav);
+  if(!favs.length){
+    list.innerHTML=`<div class="empty-state"><span class="empty-icon">⭐</span><p>No starred entries yet.<br>Tap ☆ on any entry to star it.</p></div>`;
+    return;
+  }
+  list.innerHTML=favs.map((e,i)=>`
+    <div class="entry-card cat-${e.category}" data-id="${e.id}" style="animation-delay:${i*.04}s">
+      <div class="entry-avatar">${CAT_EMOJI[e.category]}</div>
+      <div class="entry-info">
+        <div class="entry-name">${esc(e.name)}</div>
+        <div class="entry-user">${esc(e.username||'—')}</div>
+        <div class="entry-pw-preview">••••••••</div>
+        <div class="entry-updated">Updated ${timeAgo(e.updated||e.created)}</div>
+      </div>
+      <div class="entry-meta">
+        <span class="fav-star" data-fav="${e.id}">⭐</span>
+        <span class="entry-arrow">›</span>
+      </div>
+    </div>`).join('');
+  list.querySelectorAll('.entry-card').forEach(c=>c.addEventListener('click',ev=>{ if(ev.target.classList.contains('fav-star')) return; openDetail(c.dataset.id); }));
+  list.querySelectorAll('.fav-star').forEach(s=>s.addEventListener('click',async ev=>{
+    ev.stopPropagation();
+    const entry=state.entries.find(e=>e.id===s.dataset.fav);
+    if(entry){ entry.fav=false; await saveEntries(); renderFavs(); updateStats(); }
+  }));
+}
+
+function updateStats() {
+  document.getElementById('stat-total').textContent=state.entries.length;
+  document.getElementById('stat-fav').textContent=state.entries.filter(e=>e.fav).length;
+  document.getElementById('stat-cats').textContent=new Set(state.entries.map(e=>e.category)).size;
+}
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+document.getElementById('sort-select').addEventListener('change', renderEntries);
+document.getElementById('cat-pills').addEventListener('click', e=>{
+  const pill=e.target.closest('.pill'); if(!pill) return;
+  state.activeFilter=pill.dataset.cat;
+  document.querySelectorAll('.pill').forEach(p=>p.classList.toggle('active',p===pill));
+  renderEntries();
+});
+
+// ═══════════════════════════════════════
+//  DETAIL
+// ═══════════════════════════════════════
+let currentDetail=null;
+
+function openDetail(id) {
+  const entry=state.entries.find(e=>e.id===id); if(!entry) return;
+  currentDetail=entry;
+  document.getElementById('d-avatar').textContent=CAT_EMOJI[entry.category];
+  document.getElementById('d-name').textContent=entry.name;
+  const cb=document.getElementById('d-cat');
+  cb.textContent=entry.category.charAt(0).toUpperCase()+entry.category.slice(1);
+  cb.style.background=CAT_BG[entry.category]; cb.style.color=CAT_COLOR[entry.category];
+  document.getElementById('d-updated').textContent='Last updated '+timeAgo(entry.updated||entry.created);
+  document.getElementById('detail-fav-btn').textContent=entry.fav?'⭐':'☆';
+  document.getElementById('d-user').textContent=entry.username||'—';
+  document.getElementById('d-pass').textContent='••••••••';
+  document.getElementById('d-pass').dataset.revealed='0';
+  document.getElementById('reveal-btn').textContent='Show';
+  document.getElementById('d-pass').classList.add('masked');
+  const notesF=document.getElementById('d-notes-field');
+  if(entry.notes){ document.getElementById('d-notes').textContent=entry.notes; notesF.style.display='block'; }
+  else notesF.style.display='none';
+  // Custom fields
+  const cf=document.getElementById('d-custom-fields');
+  cf.innerHTML=(entry.customFields||[]).map(f=>`
+    <div class="detail-field">
+      <div class="detail-field-label">${esc(f.name)}</div>
+      <div class="detail-field-row">
+        <div class="detail-field-value">${esc(f.value)}</div>
+        <button class="copy-btn" onclick="copyText('${f.value.replace(/'/g,"\\'")}',this)">Copy</button>
+      </div>
+    </div>`).join('');
+  showScreen('detail-screen');
+}
+
+window.copyText=async function(val, btn) {
+  try{
+    await navigator.clipboard.writeText(val);
+    const orig=btn.textContent; btn.textContent='✓ Copied'; btn.classList.add('copied');
+    toast('Copied! Clears in 30s 🔒');
+    setTimeout(()=>{ btn.textContent=orig; btn.classList.remove('copied'); },2000);
+    setTimeout(()=>navigator.clipboard.writeText(''),30000);
+  } catch(e){ toast('Copy failed — try long press'); }
+};
+
+document.getElementById('detail-back').addEventListener('click',()=>{ showScreen('home-screen'); renderEntries(); });
+document.getElementById('detail-edit').addEventListener('click',()=>openForm(currentDetail.id));
+document.getElementById('detail-fav-btn').addEventListener('click',async()=>{
+  if(!currentDetail) return;
+  currentDetail.fav=!currentDetail.fav;
+  document.getElementById('detail-fav-btn').textContent=currentDetail.fav?'⭐':'☆';
+  await saveEntries(); updateStats();
+  toast(currentDetail.fav?'Added to starred ⭐':'Removed from starred');
+});
+
+document.getElementById('reveal-btn').addEventListener('click',()=>{
+  const el=document.getElementById('d-pass'), btn=document.getElementById('reveal-btn');
+  if(el.dataset.revealed==='0'){ el.textContent=currentDetail.password; el.dataset.revealed='1'; el.classList.remove('masked'); btn.textContent='Hide'; }
+  else{ el.textContent='••••••••'; el.dataset.revealed='0'; el.classList.add('masked'); btn.textContent='Show'; }
+});
+
+document.querySelectorAll('.copy-btn[data-copy]').forEach(btn=>{
+  btn.addEventListener('click',async()=>{
+    if(!currentDetail) return;
+    const val=btn.dataset.copy==='user'?currentDetail.username:currentDetail.password;
+    await copyText(val,btn);
+  });
+});
+
+// ═══════════════════════════════════════
+//  FORM
+// ═══════════════════════════════════════
+let customFieldsData=[];
+
+function renderCustomFields() {
+  const container=document.getElementById('custom-fields-list');
+  container.innerHTML=customFieldsData.map((cf,i)=>`
+    <div class="custom-field-row">
+      <input class="field-input cf-name" placeholder="Label" value="${esc(cf.name)}" oninput="customFieldsData[${i}].name=this.value" autocomplete="off"/>
+      <input class="field-input" placeholder="Value" value="${esc(cf.value)}" oninput="customFieldsData[${i}].value=this.value" autocomplete="off"/>
+      <button class="cf-del" onclick="removeCustomField(${i})">✕</button>
+    </div>`).join('');
+}
+
+window.removeCustomField=function(i){ customFieldsData.splice(i,1); renderCustomFields(); };
+document.getElementById('add-cf-btn').addEventListener('click',()=>{
+  customFieldsData.push({name:'',value:''}); renderCustomFields();
+});
+
+function openForm(editId=null) {
+  state.editId=editId;
+  document.getElementById('form-title').textContent=editId?'Edit Entry':'Add Entry';
+  const delBtn=document.getElementById('form-delete');
+  customFieldsData=[];
+  if(editId){
+    const e=state.entries.find(x=>x.id===editId);
+    document.getElementById('f-name').value=e.name;
+    document.getElementById('f-cat').value=e.category;
+    document.getElementById('f-user').value=e.username||'';
+    document.getElementById('f-pass').value=e.password;
+    document.getElementById('f-notes').value=e.notes||'';
+    customFieldsData=(e.customFields||[]).map(cf=>({...cf}));
+    delBtn.classList.remove('hidden');
+    updateStrength(e.password);
+  } else {
+    ['f-name','f-user','f-pass','f-notes'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-cat').value='social';
+    delBtn.classList.add('hidden');
+    updateStrength('');
+  }
+  renderCustomFields();
+  showScreen('form-screen');
+}
+
+document.getElementById('add-btn').addEventListener('click',()=>openForm());
+document.getElementById('form-back').addEventListener('click',()=>{
+  if(state.editId) showScreen('detail-screen');
+  else { showScreen('home-screen'); renderEntries(); }
+});
+
+// Eye toggle
+document.getElementById('pw-eye').addEventListener('click',()=>{
+  const inp=document.getElementById('f-pass');
+  inp.type=inp.type==='password'?'text':'password';
+});
+
+// ═══════════════════════════════════════
+//  SEARCH CANCEL BUTTON
+// ═══════════════════════════════════════
+const searchInput = document.getElementById('search-input');
+const searchCancel = document.getElementById('search-cancel');
+
+searchInput.addEventListener('focus', () => searchCancel.classList.add('visible'));
+searchInput.addEventListener('input', () => {
+  searchCancel.classList.toggle('visible', true);
+  renderEntries();
+});
+searchCancel.addEventListener('click', () => {
+  searchInput.value = '';
+  searchInput.blur();
+  searchCancel.classList.remove('visible');
+  // Reset category filter to All
+  state.activeFilter = 'all';
+  document.querySelectorAll('.pill').forEach(p => p.classList.toggle('active', p.dataset.cat === 'all'));
+  renderEntries();
+});
+
+// ═══════════════════════════════════════
+//  TAPPABLE STAT CARDS
+// ═══════════════════════════════════════
+document.getElementById('stat-fav-card').addEventListener('click', () => {
+  state.currentNav = 'fav';
+  showScreen('fav-screen');
+  renderFavs();
+});
+
+document.getElementById('stat-cats-card').addEventListener('click', () => {
+  openCatSheet();
+});
+
+// ═══════════════════════════════════════
+//  CATEGORIES BOTTOM SHEET
+// ═══════════════════════════════════════
+const CAT_DOT_COLOR = {
+  social:'#5b5ff5', banking:'#10b981', work:'#f59e0b', email:'#ec4899', other:'#9096b8'
+};
+const CAT_NAMES = {social:'Social', banking:'Banking', work:'Work', email:'Email', other:'Other'};
+
+function openCatSheet() {
+  const counts = {};
+  state.entries.forEach(e => { counts[e.category] = (counts[e.category]||0) + 1; });
+  const total = state.entries.length || 1;
+  const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  const list = document.getElementById('cat-breakdown-list');
+  list.innerHTML = sorted.length ? sorted.map(([cat, count]) => `
+    <div class="cat-breakdown-item">
+      <div class="cat-breakdown-dot" style="background:${CAT_DOT_COLOR[cat]||'#9096b8'}"></div>
+      <div class="cat-breakdown-name">${CAT_EMOJI[cat]||'📁'} ${CAT_NAMES[cat]||cat}</div>
+      <div class="cat-breakdown-count">${count}</div>
+    </div>
+  `).join('') : '<div style="text-align:center;color:var(--muted);font-size:14px;padding:20px 0;">No entries yet</div>';
+  document.getElementById('sheet-overlay').classList.add('visible');
+  document.getElementById('cat-sheet').classList.add('open');
+}
+
+function closeCatSheet() {
+  document.getElementById('sheet-overlay').classList.remove('visible');
+  document.getElementById('cat-sheet').classList.remove('open');
+}
+
+document.getElementById('sheet-overlay').addEventListener('click', closeCatSheet);
+
+// ═══════════════════════════════════════
+//  BACKUP NUDGE
+// ═══════════════════════════════════════
+function checkBackupNudge() {
+  const lastExport = parseInt(Store.get('vault_last_export')||'0');
+  const lastDismiss = parseInt(Store.get('vault_nudge_dismissed')||'0');
+  const now = Date.now();
+  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+  // Don't show if dismissed within 30 days
+  if (lastDismiss && (now - lastDismiss) < THIRTY_DAYS) return;
+  // Show if never exported, or exported more than 30 days ago
+  if (!lastExport || (now - lastExport) > THIRTY_DAYS) {
+    const wrap = document.getElementById('backup-nudge-wrap');
+    const msg = !lastExport ? 'You haven\'t backed up yet' : 'No backup in 30+ days';
+    wrap.innerHTML = `
+      <div class="backup-nudge">
+        <div>⚠️</div>
+        <div class="backup-nudge-text">${msg}<span>Export a backup to keep your passwords safe</span></div>
+        <button class="backup-nudge-btn" id="nudge-backup-btn">Backup</button>
+        <button class="backup-nudge-dismiss" id="nudge-dismiss-btn">✕</button>
+      </div>`;
+    document.getElementById('nudge-backup-btn').addEventListener('click', () => {
+      doExport();
+      wrap.innerHTML = '';
+    });
+    document.getElementById('nudge-dismiss-btn').addEventListener('click', () => {
+      Store.set('vault_nudge_dismissed', Date.now().toString());
+      wrap.innerHTML = '';
+    });
+  }
+}
+
+function doExport() {
+  const enc = Store.get('vault_data');
+  if (!enc) { toast('Nothing to export'); return; }
+  const blob = new Blob([JSON.stringify({v:2,data:enc})],{type:'application/json'});
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = `vault-backup-${new Date().toISOString().slice(0,10)}.vault`;
+  a.click(); URL.revokeObjectURL(url);
+  Store.set('vault_last_export', Date.now().toString());
+  toast('Backup exported ✓');
+}
+
+// Strength
+function updateStrength(pw) {
+  const fill=document.getElementById('strength-fill'), lbl=document.getElementById('strength-label');
+  if(!pw){ fill.style.width='0'; lbl.textContent=''; return; }
+  let s=0;
+  if(pw.length>=8)s++; if(pw.length>=12)s++;
+  if(/[A-Z]/.test(pw))s++; if(/[0-9]/.test(pw))s++; if(/[^A-Za-z0-9]/.test(pw))s++;
+  const lvl=[{w:'20%',bg:'#ef4444',t:'Very Weak'},{w:'40%',bg:'#f97316',t:'Weak'},{w:'60%',bg:'#f59e0b',t:'Fair'},{w:'80%',bg:'#06d6a0',t:'Strong'},{w:'100%',bg:'#10b981',t:'Very Strong'}];
+  const l=lvl[Math.min(s,4)];
+  fill.style.width=l.w; fill.style.background=l.bg; lbl.textContent=l.t; lbl.style.color=l.bg;
+}
+document.getElementById('f-pass').addEventListener('input',e=>updateStrength(e.target.value));
+
+// Save
+document.getElementById('form-save').addEventListener('click',async()=>{
+  const name=document.getElementById('f-name').value.trim();
+  const pass=document.getElementById('f-pass').value;
+  if(!name){ toast('App name is required'); return; }
+  if(!pass){ toast('Password is required'); return; }
+  const now=Date.now();
+  const entry={
+    id: state.editId || now.toString(36)+Math.random().toString(36).slice(2),
+    name, category:document.getElementById('f-cat').value,
+    username:document.getElementById('f-user').value.trim(),
+    password:pass, notes:document.getElementById('f-notes').value.trim(),
+    customFields:customFieldsData.filter(f=>f.name||f.value),
+    fav: state.editId ? (state.entries.find(e=>e.id===state.editId)||{}).fav||false : false,
+    created: state.editId ? (state.entries.find(e=>e.id===state.editId)||{}).created||now : now,
+    updated: now,
+  };
+  if(state.editId){ const idx=state.entries.findIndex(e=>e.id===state.editId); state.entries[idx]=entry; currentDetail=entry; }
+  else state.entries.unshift(entry);
+  await saveEntries(); updateStats();
+  toast(state.editId?'Updated ✓':'Saved ✓');
+  if(state.editId) openDetail(entry.id);
+  else { showScreen('home-screen'); renderEntries(); }
+});
+
+document.getElementById('form-delete').addEventListener('click',async()=>{
+  if(!confirm('Delete this entry?')) return;
+  state.entries=state.entries.filter(e=>e.id!==state.editId);
+  await saveEntries(); updateStats(); toast('Deleted');
+  showScreen('home-screen'); renderEntries();
+});
+
+// ═══════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════
+document.getElementById('s-lock').addEventListener('click', lockVault);
+document.getElementById('s-change-pin').addEventListener('click',()=>{ initPINScreen('change-old'); showScreen('pin-screen'); });
+
+document.getElementById('s-export').addEventListener('click', doExport);
+
+document.getElementById('s-import').addEventListener('click',()=>document.getElementById('import-file').click());
+document.getElementById('import-file').addEventListener('change',async e=>{
+  const file=e.target.files[0]; if(!file) return;
+  try{
+    const parsed=JSON.parse(await file.text());
+    if(!parsed.data) throw 0;
+    const entries=await Crypto.decrypt(parsed.data,state.currentPIN);
+    state.entries=entries; Store.set('vault_data',parsed.data);
+    toast(`Imported ${entries.length} entries ✓`);
+    renderEntries(); updateStats(); showScreen('home-screen');
+  } catch(err){ toast('Import failed — wrong PIN or corrupt file'); }
+  e.target.value='';
+});
+
+// ═══════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════
+function init() {
+  applyTheme(Store.get('vault_theme')==='dark');
+  const hasPin=!!Store.get('vault_pin');
+  initPINScreen(hasPin?'unlock':'setup');
+  showScreen('pin-screen');
+}
+init();
+</script>
 </body>
 </html>
