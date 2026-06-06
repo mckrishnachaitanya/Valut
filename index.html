@@ -207,7 +207,7 @@ body::after{
    HOME
 ═══════════════════════════════════ */
 #home-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
-.entries-list{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h) + 20px);overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;flex:1 1 0;min-height:0;}
+.entries-list{padding:0 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h) + 20px);overflow-y:auto;overflow-x:clip;-webkit-overflow-scrolling:touch;flex:1 1 0;min-height:0;}
 .home-header{padding:52px 20px 0;}
 .home-greeting{font-size:13px;color:var(--muted);font-weight:500;}
 .home-title{font-size:26px;font-weight:800;color:var(--text);letter-spacing:-.5px;margin-top:2px;font-family:var(--font-head);}
@@ -310,7 +310,7 @@ body::after{
 .entry-card{
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);
   padding:15px 16px;display:flex;align-items:center;gap:13px;cursor:pointer;
-  transition:all .15s;position:relative;overflow:hidden;
+  transition:all .15s;position:relative;
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   box-shadow:var(--shadow-sm);flex-shrink:0;
 }
@@ -559,20 +559,22 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .entry-card-wrap{
   position:relative;flex-shrink:0;
   border-radius:var(--radius);
-  overflow:hidden;
+  /* No overflow:hidden — would clip card's translateX */
+  /* Card slides left; bg starts at translateX(100%) so never visible until swiped */
 }
-/* Delete bg: hidden to the RIGHT, slides in when card moves left */
+/* Delete bg: hidden off-right via translateX, clips via overflow on wrap */
 .swipe-delete-bg{
   position:absolute;right:0;top:0;bottom:0;width:88px;
   background:linear-gradient(135deg,#ef4444,#dc2626);
   display:flex;align-items:center;justify-content:center;
-  flex-direction:column;gap:3px;
+  flex-direction:column;gap:3px;border-radius:var(--radius);
   transform:translateX(100%); /* hidden by default — off screen right */
   transition:transform .25s cubic-bezier(.32,1,.28,1);
   pointer-events:none;cursor:pointer;
+  /* stays clipped because translateX keeps it outside visible wrap bounds */
 }
 .swipe-delete-bg.revealed{
-  transform:translateX(0);   /* fully visible when card is swiped */
+  transform:translateX(0);
   pointer-events:all;
 }
 .swipe-delete-bg span{font-size:22px;}
