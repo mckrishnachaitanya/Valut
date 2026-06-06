@@ -931,7 +931,7 @@ function lockVault() {
 }
 document.addEventListener('touchstart', resetAutoLock);
 document.addEventListener('click', resetAutoLock);
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state.unlocked) lockVault(); });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state.unlocked && !state.importInProgress) lockVault(); });
 
 // ═══════════════════════════════════════
 //  PIN SCREEN
@@ -1450,24 +1450,29 @@ document.getElementById('s-change-pin').addEventListener('click',()=>{ initPINSc
 
 document.getElementById('s-export').addEventListener('click', doExport);
 
-document.getElementById('s-import').addEventListener('click',()=>document.getElementById('import-file').click());
+document.getElementById('s-import').addEventListener('click',()=>{
+  state.importInProgress=true;  // prevent visibilitychange from locking vault during file picker
+  document.getElementById('import-file').click();
+});
 document.getElementById('import-file').addEventListener('change',async e=>{
-  const file=e.target.files[0]; if(!file) return;
+  state.importInProgress=false;
+  const file=e.target.files[0];
+  if(!file){ e.target.value=''; return; }
+  if(!state.currentPIN){ toast('Vault is locked — unlock first'); e.target.value=''; return; }
+  const savedPIN=state.currentPIN; // capture before any async gap
   try{
     const text=await file.text();
     const parsed=JSON.parse(text);
     if(!parsed.data) throw new Error('invalid');
-    // state.currentPIN must be set (user is unlocked) — validate before attempting
-    if(!state.currentPIN) { toast('Unlock the vault first before importing'); e.target.value=''; return; }
-    const entries=await Crypto.decrypt(parsed.data, state.currentPIN);
+    const entries=await Crypto.decrypt(parsed.data, savedPIN);
     if(!Array.isArray(entries)) throw new Error('corrupt');
     state.entries=entries;
-    Store.set('vault_data', parsed.data);
+    // Re-encrypt with current PIN and save — do NOT store the raw backup blob
     await saveEntries();
     toast(`Imported ${entries.length} entries ✓`);
     renderEntries(); updateStats(); showScreen('home-screen');
   } catch(err){
-    toast('Import failed — wrong PIN or corrupt file');
+    toast('Import failed — file may be corrupt');
   }
   e.target.value='';
 });
