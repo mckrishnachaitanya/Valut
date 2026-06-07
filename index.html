@@ -534,61 +534,84 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 ═══════════════════════════════════ */
 .delete-overlay{
   position:fixed;inset:0;z-index:800;
-  background:rgba(0,0,0,.45);
-  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-  display:flex;align-items:flex-end;justify-content:center;
-  transition:opacity .25s;
+  background:rgba(0,0,0,.55);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+  transition:opacity .22s;
 }
 .delete-overlay.hidden{opacity:0;pointer-events:none;}
-.delete-overlay.hidden .delete-sheet{transform:translateY(100%);}
+.delete-overlay.hidden .delete-sheet{transform:scale(.92) translateY(12px);opacity:0;}
 .delete-sheet{
-  width:100%;max-width:480px;
+  width:100%;max-width:340px;
   background:var(--surface2);
   border:1.5px solid var(--border);
+  border-radius:28px;
+  padding:32px 24px 24px;
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  box-shadow:0 24px 64px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.06) inset;
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1), opacity .22s;
+  transform:scale(1) translateY(0);
+  opacity:1;
+  position:relative;overflow:hidden;
+}
+/* Subtle red glow at top of card */
+.delete-sheet::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,transparent,#ef4444,transparent);
   border-radius:28px 28px 0 0;
-  padding:12px 24px 40px;
-  display:flex;flex-direction:column;align-items:center;gap:12px;
-  box-shadow:0 -8px 48px rgba(0,0,0,.22);
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  transition:transform .32s cubic-bezier(.32,1,.28,1);
-  transform:translateY(0);
 }
-.delete-sheet-handle{
-  width:40px;height:4px;border-radius:4px;
-  background:var(--border);margin-bottom:8px;flex-shrink:0;
+/* Ambient red glow behind icon */
+.delete-sheet::after{
+  content:'';position:absolute;top:-30px;left:50%;transform:translateX(-50%);
+  width:160px;height:120px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(239,68,68,.18) 0%,transparent 70%);
+  pointer-events:none;
 }
+.delete-sheet-handle{display:none;}
 .delete-sheet-icon{
-  width:64px;height:64px;border-radius:20px;
-  background:rgba(239,68,68,.12);border:1.5px solid rgba(239,68,68,.25);
+  width:72px;height:72px;border-radius:22px;
+  background:linear-gradient(135deg,rgba(239,68,68,.18),rgba(220,38,38,.08));
+  border:1.5px solid rgba(239,68,68,.3);
   display:flex;align-items:center;justify-content:center;
-  font-size:28px;flex-shrink:0;
+  font-size:32px;flex-shrink:0;
+  box-shadow:0 8px 24px rgba(239,68,68,.2);
+  position:relative;z-index:1;
 }
 .delete-sheet-title{
-  font-size:19px;font-weight:800;color:var(--text);
-  font-family:var(--font-head);letter-spacing:-.3px;
+  font-size:20px;font-weight:800;color:var(--text);
+  font-family:var(--font-head);letter-spacing:-.4px;
+  position:relative;z-index:1;
 }
 .delete-sheet-msg{
-  font-size:14px;color:var(--text2);text-align:center;
-  line-height:1.55;max-width:280px;font-weight:500;
+  font-size:13.5px;color:var(--text2);text-align:center;
+  line-height:1.6;max-width:260px;font-weight:500;
+  position:relative;z-index:1;
+}
+.delete-sheet-entry-name{
+  font-weight:700;color:var(--text);
+}
+.delete-sheet-actions{
+  display:flex;flex-direction:column;gap:10px;width:100%;margin-top:6px;
 }
 .delete-sheet-confirm{
   width:100%;padding:16px;border-radius:var(--radius);border:none;
-  background:linear-gradient(135deg,#ef4444,#dc2626);
+  background:linear-gradient(135deg,#ef4444,#b91c1c);
   color:#fff;font-family:var(--font);font-size:16px;font-weight:700;
   cursor:pointer;transition:all .14s;
-  box-shadow:0 6px 20px rgba(239,68,68,.35);
-  margin-top:4px;
+  box-shadow:0 6px 20px rgba(239,68,68,.4), 0 0 0 1px rgba(255,255,255,.1) inset;
+  letter-spacing:.1px;
 }
-.delete-sheet-confirm:active{transform:scale(.97);opacity:.9;}
+.delete-sheet-confirm:active{transform:scale(.97);box-shadow:0 2px 8px rgba(239,68,68,.3);}
 .delete-sheet-cancel{
   width:100%;padding:14px;border-radius:var(--radius);
   border:1.5px solid var(--border);
-  background:var(--surface);color:var(--text2);
-  font-family:var(--font);font-size:15px;font-weight:700;
+  background:transparent;color:var(--text2);
+  font-family:var(--font);font-size:15px;font-weight:600;
   cursor:pointer;transition:all .14s;
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
 }
-.delete-sheet-cancel:active{background:var(--surface2);}
+.delete-sheet-cancel:active{background:var(--surface);}
 
 /* ═══════════════════════════════════
    LOCK OVERLAY
@@ -911,9 +934,11 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="delete-sheet-handle"></div>
     <div class="delete-sheet-icon">🗑️</div>
     <div class="delete-sheet-title">Delete Entry</div>
-    <div class="delete-sheet-msg" id="delete-sheet-msg">Are you sure you want to delete this entry? This cannot be undone.</div>
-    <button class="delete-sheet-confirm" id="delete-sheet-confirm">Delete</button>
-    <button class="delete-sheet-cancel" id="delete-sheet-cancel">Cancel</button>
+    <div class="delete-sheet-msg" id="delete-sheet-msg"></div>
+    <div class="delete-sheet-actions">
+      <button class="delete-sheet-confirm" id="delete-sheet-confirm">Delete</button>
+      <button class="delete-sheet-cancel" id="delete-sheet-cancel">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -1743,7 +1768,7 @@ function confirmDelete(entryName) {
     const btnOk   = document.getElementById('delete-sheet-confirm');
     const btnCx   = document.getElementById('delete-sheet-cancel');
 
-    msg.textContent = `"${entryName}" will be permanently removed. This cannot be undone.`;
+    msg.innerHTML = `<span class="delete-sheet-entry-name">"${entryName}"</span> will be permanently removed. This cannot be undone.`;
 
     // Show
     overlay.classList.remove('hidden');
