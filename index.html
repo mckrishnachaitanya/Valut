@@ -538,10 +538,12 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   display:flex;align-items:center;justify-content:center;
   padding:24px;
+  opacity:0;pointer-events:none;
   transition:opacity .22s;
 }
-.delete-overlay.hidden{opacity:0;pointer-events:none;}
-.delete-overlay.hidden .delete-sheet{transform:scale(.92) translateY(12px);opacity:0;}
+.delete-overlay.active{opacity:1;pointer-events:all;}
+.delete-overlay .delete-sheet{transform:scale(.92) translateY(12px);opacity:0;transition:transform .3s cubic-bezier(.34,1.56,.64,1), opacity .22s;}
+.delete-overlay.active .delete-sheet{transform:scale(1) translateY(0);opacity:1;}
 .delete-sheet{
   width:100%;max-width:340px;
   background:var(--surface2);
@@ -551,9 +553,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   display:flex;flex-direction:column;align-items:center;gap:14px;
   box-shadow:0 24px 64px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.06) inset;
   backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-  transition:transform .3s cubic-bezier(.34,1.56,.64,1), opacity .22s;
-  transform:scale(1) translateY(0);
-  opacity:1;
   position:relative;overflow:hidden;
 }
 /* Subtle red glow at top of card */
@@ -929,7 +928,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 </div>
 
 <!-- ══════════ DELETE CONFIRM DIALOG ══════════ -->
-<div id="delete-overlay" class="delete-overlay hidden">
+<div id="delete-overlay" class="delete-overlay">
   <div id="delete-sheet" class="delete-sheet">
     <div class="delete-sheet-handle"></div>
     <div class="delete-sheet-icon">🗑️</div>
@@ -1222,11 +1221,12 @@ function renderEntries() {
     const entry=state.entries.find(e=>e.id===id);
     if(!entry) return;
     const ok = await confirmDelete(entry.name);
-    if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped'); btn.classList.remove('revealed'); return; }
+    if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped'); setTimeout(()=>btn.classList.remove('revealed'),280); return; }
     state.entries=state.entries.filter(e=>e.id!==id);
     await saveEntries(); updateStats(); renderEntries();
     toast('Deleted');
   }));
+  addSwipeToDelete(list);
 }
 
 function renderFavs() {
@@ -1265,7 +1265,7 @@ function renderFavs() {
     const entry=state.entries.find(e=>e.id===id);
     if(!entry) return;
     const ok = await confirmDelete(entry.name);
-    if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped'); btn.classList.remove('revealed'); return; }
+    if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped'); setTimeout(()=>btn.classList.remove('revealed'),280); return; }
     state.entries=state.entries.filter(e=>e.id!==id);
     await saveEntries(); updateStats(); renderFavs();
     toast('Deleted');
@@ -1370,7 +1370,6 @@ function addSwipeToDelete(container) {
 
   function snapOpen(card, delBg) {
     card.style.transition = '';
-    delBg.style.transition = '';
     card.style.marginRight = SWIPE_PX + 'px';
     card.classList.add('swiped');
     delBg.classList.add('revealed');
@@ -1378,10 +1377,11 @@ function addSwipeToDelete(container) {
 
   function snapClose(card, delBg) {
     card.style.transition = '';
-    delBg.style.transition = '';
     card.style.marginRight = '';
     card.classList.remove('swiped');
-    delBg.classList.remove('revealed');
+    // Keep revealed (pointer-events:all) until CSS transition finishes
+    // so a tap during close doesn't land on a dead button
+    setTimeout(() => delBg.classList.remove('revealed'), 280);
   }
 
   function closeAll() {
@@ -1771,10 +1771,10 @@ function confirmDelete(entryName) {
     msg.innerHTML = `<span class="delete-sheet-entry-name">"${entryName}"</span> will be permanently removed. This cannot be undone.`;
 
     // Show
-    overlay.classList.remove('hidden');
+    overlay.classList.add('active');
 
     function finish(result) {
-      overlay.classList.add('hidden');
+      overlay.classList.remove('active');
       btnOk.removeEventListener('click', onOk);
       btnCx.removeEventListener('click', onCancel);
       overlay.removeEventListener('click', onOverlay);
