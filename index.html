@@ -567,7 +567,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   position:absolute;right:0;top:0;bottom:0;width:88px;
   background:linear-gradient(135deg,#ef4444,#dc2626);
   display:flex;align-items:center;justify-content:center;
-  flex-direction:column;gap:3px;border-radius:0 var(--radius) var(--radius) 0;
+  flex-direction:column;gap:3px;border-radius:var(--radius-sm) var(--radius) var(--radius) var(--radius-sm);
   pointer-events:none;cursor:pointer;
 }
 .swipe-delete-bg.revealed{
@@ -826,7 +826,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title">Vault v2.0</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title">Vault v3.1</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
   </div>
   <div class="bottom-nav">
@@ -882,7 +882,7 @@ const Crypto = {
 let state = {
   entries:[], currentPIN:'', unlocked:false, editId:null,
   activeFilter:'all', pinBuffer:'', pinMode:'unlock',
-  pinTemp:'', failCount:0, currentNav:'home',
+  pinTemp:'', failCount:0, currentNav:'home', detailSource:'home',
 };
 
 const Store = {
@@ -1196,6 +1196,7 @@ let currentDetail=null;
 
 function openDetail(id) {
   const entry=state.entries.find(e=>e.id===id); if(!entry) return;
+  state.detailSource = state.currentNav; // track where we came from
   currentDetail=entry;
   document.getElementById('d-avatar').textContent=CAT_EMOJI[entry.category];
   document.getElementById('d-name').textContent=entry.name;
@@ -1363,7 +1364,10 @@ function addSwipeToDelete(container) {
   });
 }
 
-document.getElementById('detail-back').addEventListener('click',()=>{ showScreen('home-screen'); renderEntries(); });
+document.getElementById('detail-back').addEventListener('click',()=>{
+  if(state.detailSource==='fav'){ showScreen('fav-screen'); renderFavs(); }
+  else { showScreen('home-screen'); renderEntries(); }
+});
 
 // Detail screen — delete button
 document.getElementById('detail-delete-btn').addEventListener('click', async () => {
@@ -1372,7 +1376,8 @@ document.getElementById('detail-delete-btn').addEventListener('click', async () 
   state.entries = state.entries.filter(e => e.id !== currentDetail.id);
   await saveEntries(); updateStats();
   toast('Deleted');
-  showScreen('home-screen'); renderEntries();
+  if(state.detailSource==='fav'){ showScreen('fav-screen'); renderFavs(); }
+  else { showScreen('home-screen'); renderEntries(); }
 });
 document.getElementById('detail-edit').addEventListener('click',()=>openForm(currentDetail.id));
 document.getElementById('detail-fav-btn').addEventListener('click',async()=>{
