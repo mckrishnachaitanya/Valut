@@ -309,7 +309,7 @@ body::after{
 /* Glass entry card */
 .entry-card{
   background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);
-  padding:15px 16px;display:flex;align-items:center;gap:13px;cursor:pointer;
+  padding:11px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;
   transition:all .15s;position:relative;
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   box-shadow:var(--shadow-sm);flex-shrink:0;
@@ -326,8 +326,8 @@ body::after{
 .cat-other::before{background:var(--muted);}
 
 .entry-avatar{
-  width:44px;height:44px;border-radius:14px;
-  display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;
+  width:40px;height:40px;border-radius:13px;
+  display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;
   position:relative;
 }
 .cat-social .entry-avatar{background:linear-gradient(135deg,rgba(91,95,245,.25),rgba(139,92,246,.18));box-shadow:0 4px 12px rgba(91,95,245,.18);}
@@ -338,8 +338,7 @@ body::after{
 
 .entry-info{flex:1;min-width:0;}
 .entry-name{font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);font-family:var(--font-head);}
-.entry-user{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.entry-pw-preview{font-size:13px;color:var(--muted);letter-spacing:3px;margin-top:3px;}
+.entry-user{font-size:12px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .entry-meta{display:flex;align-items:center;gap:6px;flex-shrink:0;}
 .fav-star{font-size:16px;cursor:pointer;transition:transform .15s;}
 .fav-star:active{transform:scale(1.3);}
@@ -909,7 +908,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title">Vault v3.2</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title">Vault v3.3</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
   </div>
   <div class="bottom-nav">
@@ -1194,7 +1193,6 @@ function renderEntries() {
         <div class="entry-info">
           <div class="entry-name">${esc(e.name)}</div>
           <div class="entry-user">${esc(e.username||'—')}</div>
-          <div class="entry-pw-preview">••••••••</div>
           <div class="entry-updated">Updated ${timeAgo(e.updated||e.created)}</div>
         </div>
         <div class="entry-meta">
@@ -1244,7 +1242,6 @@ function renderFavs() {
         <div class="entry-info">
           <div class="entry-name">${esc(e.name)}</div>
           <div class="entry-user">${esc(e.username||'—')}</div>
-          <div class="entry-pw-preview">••••••••</div>
           <div class="entry-updated">Updated ${timeAgo(e.updated||e.created)}</div>
         </div>
         <div class="entry-meta">
