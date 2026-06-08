@@ -1700,11 +1700,9 @@ function renderForm() {
       showScreen('home-screen'); renderEntries();
     });
   }
-  // Password eye toggle & strength
+  // Password eye toggle & strength (for f-pass and f-netbankingpw strength bars)
   const pwField=document.getElementById('f-pass')||document.getElementById('f-netbankingpw');
   if(pwField){
-    const eyeBtn=document.getElementById('pw-eye');
-    if(eyeBtn) eyeBtn.addEventListener('click',()=>{ pwField.type=pwField.type==='password'?'text':'password'; });
     pwField.addEventListener('input',e=>updateStrength(e.target.value));
     if(editEntry && pwField.value) updateStrength(pwField.value);
   }
@@ -1724,11 +1722,11 @@ function renderFieldHTML(f, editEntry) {
       <textarea class="field-input" id="${f.id}" placeholder="${f.placeholder||''}" rows="5" style="resize:vertical;line-height:1.5" autocomplete="off">${esc(val)}</textarea></div>`;
   }
   const isPassword = f.inputType==='password';
-  const eyeId = (f.id==='f-pass'||f.id==='f-netbankingpw') ? 'pw-eye' : '';
+  const eyeId = isPassword ? `eye-${f.id}` : '';
   const strengthHtml = f.strength ? `<div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div><div class="strength-label" id="strength-label"></div>` : '';
   const inputmode = f.inputmode ? `inputmode="${f.inputmode}"` : '';
   const autocap = f.autocapitalize ? `autocapitalize="${f.autocapitalize}"` : 'autocapitalize="off"';
-  const eyeHtml = eyeId ? `<div class="pw-actions"><button class="pw-icon-btn" id="${eyeId}" type="button">👁</button></div>` : '';
+  const eyeHtml = eyeId ? `<div class="pw-actions"><button class="pw-icon-btn" id="${eyeId}" type="button" onclick="toggleFieldVisibility('${f.id}','${eyeId}')">👁</button></div>` : '';
   const wrapOpen = isPassword ? '<div class="pw-wrapper">' : '';
   const wrapClose = isPassword ? '</div>' : '';
   return `<div class="field-group"><div class="field-label">${f.label}</div>
@@ -1758,6 +1756,15 @@ function getEntryFieldValue(e, fieldId) {
   };
   return map[fieldId]??'';
 }
+
+window.toggleFieldVisibility=function(fieldId, eyeId){
+  const inp=document.getElementById(fieldId);
+  const btn=document.getElementById(eyeId);
+  if(!inp) return;
+  const isHidden=inp.type==='password';
+  inp.type=isHidden?'text':'password';
+  if(btn) btn.textContent=isHidden?'🙈':'👁';
+};
 
 window.selectType=function(type){
   formState.type=type; renderForm();
