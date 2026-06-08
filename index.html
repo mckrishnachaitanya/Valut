@@ -317,24 +317,26 @@ body::after{
 .entry-card::after{content:'';position:absolute;inset:0;border-radius:var(--radius);background:linear-gradient(135deg,rgba(255,255,255,.06),transparent);pointer-events:none;}
 .entry-card:active{transform:scale(.975);box-shadow:none;}
 
-/* category accent strip */
+/* type accent strip */
 .entry-card::before{content:'';position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;}
-.cat-social::before{background:var(--accent);}
-.cat-banking::before{background:var(--green);}
-.cat-work::before{background:var(--yellow);}
-.cat-email::before{background:var(--pink);}
-.cat-other::before{background:var(--muted);}
+.type-app::before{background:#5b5ff5;}
+.type-wifi::before{background:#06b6d4;}
+.type-note::before{background:#f59e0b;}
+.type-card::before{background:#8b5cf6;}
+.type-bank::before{background:#10b981;}
+.type-identity::before{background:#f97316;}
 
 .entry-avatar{
   width:40px;height:40px;border-radius:13px;
   display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;
   position:relative;
 }
-.cat-social .entry-avatar{background:linear-gradient(135deg,rgba(91,95,245,.25),rgba(139,92,246,.18));box-shadow:0 4px 12px rgba(91,95,245,.18);}
-.cat-banking .entry-avatar{background:linear-gradient(135deg,rgba(16,185,129,.25),rgba(6,182,212,.18));box-shadow:0 4px 12px rgba(16,185,129,.18);}
-.cat-work .entry-avatar{background:linear-gradient(135deg,rgba(245,158,11,.25),rgba(249,115,22,.18));box-shadow:0 4px 12px rgba(245,158,11,.18);}
-.cat-email .entry-avatar{background:linear-gradient(135deg,rgba(236,72,153,.25),rgba(239,68,68,.18));box-shadow:0 4px 12px rgba(236,72,153,.18);}
-.cat-other .entry-avatar{background:linear-gradient(135deg,rgba(144,150,184,.22),rgba(100,116,139,.15));box-shadow:0 4px 12px rgba(144,150,184,.15);}
+.type-app .entry-avatar{background:linear-gradient(135deg,rgba(91,95,245,.25),rgba(139,92,246,.18));box-shadow:0 4px 12px rgba(91,95,245,.18);}
+.type-wifi .entry-avatar{background:linear-gradient(135deg,rgba(6,182,212,.25),rgba(14,165,233,.18));box-shadow:0 4px 12px rgba(6,182,212,.18);}
+.type-note .entry-avatar{background:linear-gradient(135deg,rgba(245,158,11,.25),rgba(251,191,36,.18));box-shadow:0 4px 12px rgba(245,158,11,.18);}
+.type-card .entry-avatar{background:linear-gradient(135deg,rgba(139,92,246,.25),rgba(167,139,250,.18));box-shadow:0 4px 12px rgba(139,92,246,.18);}
+.type-bank .entry-avatar{background:linear-gradient(135deg,rgba(16,185,129,.25),rgba(6,182,212,.18));box-shadow:0 4px 12px rgba(16,185,129,.18);}
+.type-identity .entry-avatar{background:linear-gradient(135deg,rgba(249,115,22,.25),rgba(251,146,60,.18));box-shadow:0 4px 12px rgba(249,115,22,.18);}
 
 .entry-info{flex:1;min-width:0;}
 .entry-name{font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);font-family:var(--font-head);}
@@ -368,6 +370,31 @@ body::after{
 .field-input::placeholder{color:var(--muted);}
 select.field-input{cursor:pointer;}
 select.field-input option{background:var(--bg2);color:var(--text);}
+
+/* Type picker */
+.type-picker-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px;}
+.type-pick-btn{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:14px 8px;border-radius:var(--radius-sm);
+  border:1.5px solid var(--border);background:var(--surface);
+  cursor:pointer;transition:all .14s;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.type-pick-btn:active{transform:scale(.94);}
+.type-pick-btn.selected{border-color:var(--accent);background:rgba(91,95,245,.10);}
+.type-pick-icon{font-size:24px;}
+.type-pick-label{font-size:11px;font-weight:700;color:var(--text2);text-align:center;line-height:1.2;}
+.type-pick-btn.selected .type-pick-label{color:var(--accent);}
+.type-locked-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 14px;border-radius:var(--radius-sm);
+  background:var(--surface);border:1.5px solid var(--border);
+  font-size:13px;font-weight:700;color:var(--text2);
+  margin-bottom:4px;
+}
+
+/* Identity sub-picker */
+.doc-type-select{margin-bottom:4px;}
 
 .pw-wrapper{position:relative;}
 .pw-wrapper .field-input{padding-right:90px;}
@@ -721,7 +748,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   <div class="stats-row">
     <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total Entries</div></div>
     <div class="stat-card tappable" id="stat-fav-card"><div class="stat-num" id="stat-fav">0</div><div class="stat-label">Favourites</div></div>
-    <div class="stat-card tappable" id="stat-cats-card"><div class="stat-num" id="stat-cats">0</div><div class="stat-label">Categories</div></div>
+    <div class="stat-card tappable" id="stat-cats-card"><div class="stat-num" id="stat-cats">0</div><div class="stat-label">Types Used</div></div>
   </div>
   <div id="backup-nudge-wrap"></div>
   <div class="cat-inline-panel" id="cat-inline-panel">
@@ -738,11 +765,12 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   </div>
   <div class="filter-row" id="cat-pills">
     <div class="pill active" data-cat="all">All</div>
-    <div class="pill" data-cat="social">📱 Social</div>
-    <div class="pill" data-cat="banking">🏦 Banking</div>
-    <div class="pill" data-cat="work">💼 Work</div>
-    <div class="pill" data-cat="email">📧 Email</div>
-    <div class="pill" data-cat="other">📁 Other</div>
+    <div class="pill" data-cat="app">🌐 App</div>
+    <div class="pill" data-cat="wifi">📶 WiFi</div>
+    <div class="pill" data-cat="note">📝 Note</div>
+    <div class="pill" data-cat="card">💳 Card</div>
+    <div class="pill" data-cat="bank">🏦 Bank</div>
+    <div class="pill" data-cat="identity">🪪 Identity</div>
   </div>
   <div class="entries-list" id="entries-list"></div>
 
@@ -776,50 +804,8 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <h2 id="form-title">Add Entry</h2>
     <div style="width:40px"></div>
   </div>
-  <div class="form-body">
-    <div class="field-group">
-      <div class="field-label">App / Website Name</div>
-      <input class="field-input" id="f-name" placeholder="e.g. Instagram" autocomplete="off"/>
-    </div>
-    <div class="field-group">
-      <div class="field-label">Category</div>
-      <select class="field-input" id="f-cat">
-        <option value="social">📱 Social</option>
-        <option value="banking">🏦 Banking</option>
-        <option value="work">💼 Work</option>
-        <option value="email">📧 Email</option>
-        <option value="other">📁 Other</option>
-      </select>
-    </div>
-    <div class="field-group">
-      <div class="field-label">Username / Email</div>
-      <input class="field-input" id="f-user" placeholder="your@email.com" autocomplete="off" autocapitalize="none"/>
-    </div>
-    <div class="field-group">
-      <div class="field-label">Password</div>
-      <div class="pw-wrapper">
-        <input class="field-input" id="f-pass" type="password" placeholder="Enter password" autocomplete="new-password"/>
-        <div class="pw-actions">
-          <button class="pw-icon-btn" id="pw-eye" title="Show/Hide">👁</button>
-        </div>
-      </div>
-      <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
-      <div class="strength-label" id="strength-label"></div>
-    </div>
-    <div class="field-group">
-      <div class="field-label">Notes (optional)</div>
-      <input class="field-input" id="f-notes" placeholder="Any extra info..." autocomplete="off"/>
-    </div>
-
-    <!-- Custom Fields -->
-    <div class="field-group">
-      <div class="field-label">Custom Fields</div>
-      <div class="custom-fields-list" id="custom-fields-list"></div>
-      <button class="add-field-btn" id="add-cf-btn">＋ Add Custom Field</button>
-    </div>
-
-    <button class="btn-primary" id="form-save">Save Entry</button>
-    <button class="btn-danger hidden" id="form-delete">Delete Entry</button>
+  <div class="form-body" id="form-body">
+    <!-- Dynamically rendered by renderForm() -->
   </div>
 </div>
 
@@ -843,29 +829,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   </div>
 
   <div class="detail-fields" id="detail-fields-container">
-    <div class="detail-field">
-      <div class="detail-field-label">Username / Email</div>
-      <div class="detail-field-row">
-        <div class="detail-field-value" id="d-user"></div>
-        <button class="copy-btn" data-copy="user">Copy</button>
-      </div>
-    </div>
-    <div class="detail-field">
-      <div class="detail-field-label">Password</div>
-      <div class="detail-field-row">
-        <div class="detail-field-value masked" id="d-pass">••••••••</div>
-        <div style="display:flex;gap:6px;flex-shrink:0">
-          <button class="copy-btn" id="reveal-btn">Show</button>
-          <button class="copy-btn" data-copy="pass">Copy</button>
-        </div>
-      </div>
-    </div>
-    <div class="detail-field" id="d-notes-field">
-      <div class="detail-field-label">Notes</div>
-      <div class="detail-field-value" id="d-notes"></div>
-    </div>
-    <!-- custom fields rendered here -->
-    <div id="d-custom-fields"></div>
+    <!-- Dynamically rendered by openDetail() -->
   </div>
 </div>
 
@@ -1120,7 +1084,7 @@ async function handlePINDigit(d) {
       return;
     }
     Store.set('vault_fails',0);
-    try{ const enc=Store.get('vault_data'); state.entries=enc?await Crypto.decrypt(enc,entered):[]; }
+    try{ const enc=Store.get('vault_data'); const raw=enc?await Crypto.decrypt(enc,entered):[]; state.entries=migrateEntries(raw); }
     catch(e){ state.entries=[]; }
     state.currentPIN=entered; unlockSuccess();
   } else if(state.pinMode==='change-old'){
@@ -1154,9 +1118,44 @@ async function saveEntries() {
   Store.set('vault_data', await Crypto.encrypt(state.entries, state.currentPIN));
 }
 
-const CAT_EMOJI = {social:'📱',banking:'🏦',work:'💼',email:'📧',other:'📁'};
-const CAT_COLOR = {social:'#5b5ff5',banking:'#10b981',work:'#f59e0b',email:'#ec4899',other:'#9096b8'};
-const CAT_BG    = {social:'rgba(91,95,245,.15)',banking:'rgba(16,185,129,.15)',work:'rgba(245,158,11,.15)',email:'rgba(236,72,153,.15)',other:'rgba(144,150,184,.15)'};
+const TYPE_META = {
+  app:      { emoji:'🌐', label:'App / Website', color:'#5b5ff5', bg:'rgba(91,95,245,.15)'  },
+  wifi:     { emoji:'📶', label:'WiFi',          color:'#06b6d4', bg:'rgba(6,182,212,.15)'  },
+  note:     { emoji:'📝', label:'Secure Note',   color:'#f59e0b', bg:'rgba(245,158,11,.15)' },
+  card:     { emoji:'💳', label:'Card',          color:'#8b5cf6', bg:'rgba(139,92,246,.15)' },
+  bank:     { emoji:'🏦', label:'Bank Account',  color:'#10b981', bg:'rgba(16,185,129,.15)' },
+  identity: { emoji:'🪪', label:'Identity',      color:'#f97316', bg:'rgba(249,115,22,.15)' },
+};
+
+// Migrate old entries that have category but no type
+function migrateEntries(entries) {
+  return entries.map(e => {
+    if (!e.type) {
+      // Map old categories to closest type
+      const catMap = {social:'app', banking:'bank', work:'app', email:'app', other:'app'};
+      e.type = catMap[e.category] || 'app';
+    }
+    return e;
+  });
+}
+
+// Per-type subtitle shown on entry card (second line)
+function entrySubtitle(e) {
+  switch(e.type) {
+    case 'app':      return e.username || '—';
+    case 'wifi':     return e.ssid || '—';
+    case 'note':     return e.note ? e.note.slice(0,40) + (e.note.length>40?'…':'') : '—';
+    case 'card':     return e.cardNumber ? '•••• ' + String(e.cardNumber).slice(-4) : '—';
+    case 'bank':     return e.accountNo ? '•••• ' + String(e.accountNo).slice(-4) : (e.bankName||'—');
+    case 'identity': return e.docType ? (e.docType==='other' ? (e.docName||'Other') : DOC_TYPE_LABELS[e.docType]||e.docType) : '—';
+    default:         return '—';
+  }
+}
+
+const DOC_TYPE_LABELS = {
+  aadhaar:'Aadhaar', pan:'PAN', passport:'Passport',
+  dl:'Driving Licence', voterid:'Voter ID', other:'Other'
+};
 
 function timeAgo(ts) {
   if(!ts) return '';
@@ -1173,9 +1172,9 @@ function renderEntries() {
   const search=document.getElementById('search-input').value.toLowerCase();
   const filter=state.activeFilter;
   let entries=state.entries.filter(e=>{
-    const mc=filter==='all'||e.category===filter;
-    const ms=!search||e.name.toLowerCase().includes(search)||(e.username||'').toLowerCase().includes(search);
-    return mc&&ms;
+    const mt=filter==='all'||e.type===filter;
+    const ms=!search||e.name.toLowerCase().includes(search)||(entrySubtitle(e)||'').toLowerCase().includes(search);
+    return mt&&ms;
   });
   // Newest first, favourites always at top
   entries.sort((a,b)=>b.created-a.created);
@@ -1185,14 +1184,16 @@ function renderEntries() {
     list.innerHTML=`<div class="empty-state"><span class="empty-icon">🔒</span><p>${search?'No results found':'No entries yet.<br>Tap + to add one'}</p></div>`;
     return;
   }
-  list.innerHTML=entries.map((e,i)=>`
+  list.innerHTML=entries.map((e,i)=>{
+    const tm=TYPE_META[e.type]||TYPE_META.app;
+    return `
     <div class="entry-card-wrap">
       <div class="swipe-delete-bg" data-del="${e.id}"><span>🗑️</span><small>DELETE</small></div>
-      <div class="entry-card cat-${e.category}" data-id="${e.id}" style="animation-delay:${i*.04}s">
-        <div class="entry-avatar">${CAT_EMOJI[e.category]}</div>
+      <div class="entry-card type-${e.type}" data-id="${e.id}" style="animation-delay:${i*.04}s">
+        <div class="entry-avatar">${tm.emoji}</div>
         <div class="entry-info">
           <div class="entry-name">${esc(e.name)}</div>
-          <div class="entry-user">${esc(e.username||'—')}</div>
+          <div class="entry-user">${esc(entrySubtitle(e))}</div>
           <div class="entry-updated">Updated ${timeAgo(e.updated||e.created)}</div>
         </div>
         <div class="entry-meta">
@@ -1200,7 +1201,8 @@ function renderEntries() {
           <span class="entry-arrow">›</span>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   list.querySelectorAll('.entry-card').forEach(c=>c.addEventListener('click',ev=>{
     if(ev.target.classList.contains('fav-star')) return;
@@ -1234,14 +1236,16 @@ function renderFavs() {
     list.innerHTML=`<div class="empty-state"><span class="empty-icon">⭐</span><p>No starred entries yet.<br>Tap ☆ on any entry to star it.</p></div>`;
     return;
   }
-  list.innerHTML=favs.map((e,i)=>`
+  list.innerHTML=favs.map((e,i)=>{
+    const tm=TYPE_META[e.type]||TYPE_META.app;
+    return `
     <div class="entry-card-wrap">
       <div class="swipe-delete-bg" data-del="${e.id}"><span>🗑️</span><small>DELETE</small></div>
-      <div class="entry-card cat-${e.category}" data-id="${e.id}" style="animation-delay:${i*.04}s">
-        <div class="entry-avatar">${CAT_EMOJI[e.category]}</div>
+      <div class="entry-card type-${e.type}" data-id="${e.id}" style="animation-delay:${i*.04}s">
+        <div class="entry-avatar">${tm.emoji}</div>
         <div class="entry-info">
           <div class="entry-name">${esc(e.name)}</div>
-          <div class="entry-user">${esc(e.username||'—')}</div>
+          <div class="entry-user">${esc(entrySubtitle(e))}</div>
           <div class="entry-updated">Updated ${timeAgo(e.updated||e.created)}</div>
         </div>
         <div class="entry-meta">
@@ -1249,7 +1253,8 @@ function renderFavs() {
           <span class="entry-arrow">›</span>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   list.querySelectorAll('.entry-card').forEach(c=>c.addEventListener('click',ev=>{ if(ev.target.classList.contains('fav-star')) return; openDetail(c.dataset.id); }));
   list.querySelectorAll('.fav-star').forEach(s=>s.addEventListener('click',async ev=>{
     ev.stopPropagation();
@@ -1273,7 +1278,7 @@ function renderFavs() {
 function updateStats() {
   document.getElementById('stat-total').textContent=state.entries.length;
   document.getElementById('stat-fav').textContent=state.entries.filter(e=>e.fav).length;
-  document.getElementById('stat-cats').textContent=new Set(state.entries.map(e=>e.category)).size;
+  document.getElementById('stat-cats').textContent=new Set(state.entries.map(e=>e.type)).size;
 }
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -1292,58 +1297,133 @@ let currentDetail=null;
 
 function openDetail(id) {
   const entry=state.entries.find(e=>e.id===id); if(!entry) return;
-  state.detailSource = state.currentNav; // track where we came from
+  state.detailSource = state.currentNav;
   currentDetail=entry;
-  document.getElementById('d-avatar').textContent=CAT_EMOJI[entry.category];
+  const tm=TYPE_META[entry.type]||TYPE_META.app;
+  document.getElementById('d-avatar').textContent=tm.emoji;
   document.getElementById('d-name').textContent=entry.name;
   const cb=document.getElementById('d-cat');
-  cb.textContent=entry.category.charAt(0).toUpperCase()+entry.category.slice(1);
-  cb.style.background=CAT_BG[entry.category]; cb.style.color=CAT_COLOR[entry.category];
+  cb.textContent=tm.label;
+  cb.style.background=tm.bg; cb.style.color=tm.color;
   document.getElementById('d-updated').textContent='Last updated '+timeAgo(entry.updated||entry.created);
   document.getElementById('detail-fav-btn').textContent=entry.fav?'⭐':'☆';
-  document.getElementById('d-user').textContent=entry.username||'—';
-  document.getElementById('d-pass').textContent='••••••••';
-  document.getElementById('d-pass').dataset.revealed='0';
-  document.getElementById('reveal-btn').textContent='Show';
-  document.getElementById('d-pass').classList.add('masked');
-  const notesF=document.getElementById('d-notes-field');
-  if(entry.notes){ document.getElementById('d-notes').textContent=entry.notes; notesF.style.display='block'; }
-  else notesF.style.display='none';
-  // Custom fields
-  const cf=document.getElementById('d-custom-fields');
-  cf.innerHTML=(entry.customFields||[]).map((f,i)=>{
-    const isSensitive=!!f.sensitive;
-    const valId=`cf-val-${i}`;
-    const eyeId=`cf-eye-${i}`;
-    if(isSensitive){
-      return `
-        <div class="detail-field">
-          <div class="detail-field-label">${esc(f.name)} 🔒</div>
-          <div class="detail-field-row">
-            <div class="detail-field-value masked" id="${valId}">••••••••</div>
-            <button class="cf-eye" id="${eyeId}" onclick="toggleCFVisibility(${i},'${valId}','${eyeId}','${f.value.replace(/'/g,"\\'")}')" >👁</button>
+
+  // Build dynamic fields
+  const container=document.getElementById('detail-fields-container');
+  const fields = getDetailFields(entry);
+  container.innerHTML = fields.map((f,i)=>{
+    if(f.type==='password'){
+      const vid=`df-val-${i}`;
+      return `<div class="detail-field">
+        <div class="detail-field-label">${esc(f.label)}</div>
+        <div class="detail-field-row">
+          <div class="detail-field-value masked" id="${vid}">••••••••</div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="copy-btn" onclick="toggleDetailField('${vid}',this,'${esc(f.value).replace(/'/g,"\\'")}')">Show</button>
             <button class="copy-btn" onclick="copyText('${f.value.replace(/'/g,"\\'")}',this)">Copy</button>
           </div>
-        </div>`;
+        </div>
+      </div>`;
     }
-    return `
-      <div class="detail-field">
-        <div class="detail-field-label">${esc(f.name)}</div>
+    if(f.type==='note'){
+      return `<div class="detail-field">
+        <div class="detail-field-label">${esc(f.label)}</div>
+        <div class="detail-field-value" style="white-space:pre-wrap;line-height:1.5">${esc(f.value)}</div>
+      </div>`;
+    }
+    if(f.type==='sensitive'){
+      const vid=`df-val-${i}`;
+      return `<div class="detail-field">
+        <div class="detail-field-label">${esc(f.label)} 🔒</div>
         <div class="detail-field-row">
-          <div class="detail-field-value">${esc(f.value)}</div>
+          <div class="detail-field-value masked" id="${vid}">••••••••</div>
+          <button class="cf-eye" onclick="toggleDetailField('${vid}',this,'${f.value.replace(/'/g,"\\'")}')">👁</button>
           <button class="copy-btn" onclick="copyText('${f.value.replace(/'/g,"\\'")}',this)">Copy</button>
         </div>
       </div>`;
+    }
+    // plain
+    return `<div class="detail-field">
+      <div class="detail-field-label">${esc(f.label)}</div>
+      <div class="detail-field-row">
+        <div class="detail-field-value">${esc(f.value)}</div>
+        <button class="copy-btn" onclick="copyText('${f.value.replace(/'/g,"\\'")}',this)">Copy</button>
+      </div>
+    </div>`;
   }).join('');
+
   showScreen('detail-screen');
 }
 
-window.toggleCFVisibility=function(i, valId, eyeId, val){
-  const el=document.getElementById(valId);
-  const btn=document.getElementById(eyeId);
+// Returns array of {label, value, type} for the detail screen
+function getDetailFields(e) {
+  const fields = [];
+  const add=(label,value,type='plain')=>{ if(value) fields.push({label,value,type}); };
+
+  switch(e.type) {
+    case 'app':
+      add('Username / Email', e.username);
+      add('Password', e.password, 'password');
+      add('URL', e.url);
+      add('Notes', e.notes, 'note');
+      break;
+    case 'wifi':
+      add('Network Name (SSID)', e.ssid);
+      add('Password', e.password, 'password');
+      add('Security Type', e.securityType);
+      add('Notes', e.notes, 'note');
+      break;
+    case 'note':
+      add('Note', e.note, 'note');
+      break;
+    case 'card':
+      add('Cardholder Name', e.cardHolder);
+      add('Card Number', e.cardNumber, 'password');
+      add('Expiry', e.expiry);
+      add('CVV', e.cvv, 'password');
+      add('PIN', e.pin, 'password');
+      add('Notes', e.notes, 'note');
+      break;
+    case 'bank':
+      add('Bank Name', e.bankName);
+      add('Account Number', e.accountNo, 'password');
+      add('IFSC Code', e.ifsc);
+      add('Account Type', e.accountType);
+      add('Net Banking ID', e.netBankingId);
+      add('Net Banking Password', e.netBankingPassword, 'password');
+      add('Notes', e.notes, 'note');
+      break;
+    case 'identity':
+      if(e.docType==='other'){
+        add('Document Name', e.docName);
+        add('Document Number', e.docNumber, 'password');
+      } else {
+        add('Document Type', DOC_TYPE_LABELS[e.docType]||e.docType);
+        add('Document Number', e.docNumber, 'password');
+        add('Full Name', e.idName);
+        add('Date of Birth', e.dob);
+        if(['passport','dl'].includes(e.docType)) add('Expiry Date', e.expiry);
+        if(e.docType==='passport') add('Nationality', e.nationality);
+        if(e.docType==='dl') add('Issuing State', e.issuingState);
+      }
+      add('Notes', e.notes, 'note');
+      break;
+  }
+
+  // Custom fields
+  (e.customFields||[]).forEach(f=>{
+    if(f.name||f.value) fields.push({label:f.name||'—', value:f.value||'', type: f.sensitive?'sensitive':'plain'});
+  });
+  return fields;
+}
+
+window.toggleDetailField=function(vid, btn, val){
+  const el=document.getElementById(vid);
   const isHidden=el.textContent==='••••••••';
   el.textContent=isHidden?val:'••••••••';
-  btn.textContent=isHidden?'🙈':'👁';
+  el.classList.toggle('masked',!isHidden);
+  if(btn.classList.contains('copy-btn')) btn.textContent=isHidden?'Hide':'Show';
+  else btn.textContent=isHidden?'🙈':'👁';
 };
 
 window.copyText=async function(val, btn) {
@@ -1485,78 +1565,284 @@ document.getElementById('detail-fav-btn').addEventListener('click',async()=>{
   toast(currentDetail.fav?'Added to starred ⭐':'Removed from starred');
 });
 
-document.getElementById('reveal-btn').addEventListener('click',()=>{
-  const el=document.getElementById('d-pass'), btn=document.getElementById('reveal-btn');
-  if(el.dataset.revealed==='0'){ el.textContent=currentDetail.password; el.dataset.revealed='1'; el.classList.remove('masked'); btn.textContent='Hide'; }
-  else{ el.textContent='••••••••'; el.dataset.revealed='0'; el.classList.add('masked'); btn.textContent='Show'; }
-});
-
-document.querySelectorAll('.copy-btn[data-copy]').forEach(btn=>{
-  btn.addEventListener('click',async()=>{
-    if(!currentDetail) return;
-    const val=btn.dataset.copy==='user'?currentDetail.username:currentDetail.password;
-    await copyText(val,btn);
-  });
-});
-
 // ═══════════════════════════════════════
 //  FORM
 // ═══════════════════════════════════════
 let customFieldsData=[];
+let formState={ type:'app', docType:'aadhaar' };
+
+// TYPE_FIELDS defines what fields each type has in the form
+const TYPE_FIELDS = {
+  app: [
+    {id:'f-name',    label:'App / Website Name', placeholder:'e.g. Instagram',    required:true},
+    {id:'f-url',     label:'URL (optional)',      placeholder:'https://...',        autocapitalize:'none'},
+    {id:'f-user',    label:'Username / Email',    placeholder:'your@email.com',     autocapitalize:'none'},
+    {id:'f-pass',    label:'Password',            placeholder:'Enter password',     inputType:'password', required:true, strength:true},
+    {id:'f-notes',   label:'Notes (optional)',    placeholder:'Any extra info...'},
+  ],
+  wifi: [
+    {id:'f-ssid',    label:'Network Name (SSID)', placeholder:'e.g. HomeNetwork',   required:true},
+    {id:'f-pass',    label:'Password',            placeholder:'WiFi password',      inputType:'password', required:true, strength:true},
+    {id:'f-sectype', label:'Security Type',       inputType:'select',
+      options:[{v:'WPA2',l:'WPA2'},{v:'WPA3',l:'WPA3'},{v:'WEP',l:'WEP'},{v:'Open',l:'Open (no password)'}]},
+    {id:'f-notes',   label:'Notes (optional)',    placeholder:'Any extra info...'},
+  ],
+  note: [
+    {id:'f-name',    label:'Title',               placeholder:'e.g. Recovery codes', required:true},
+    {id:'f-note',    label:'Note',                placeholder:'Type your note here...', inputType:'textarea', required:true},
+  ],
+  card: [
+    {id:'f-name',       label:'Card Name',        placeholder:'e.g. HDFC Debit',    required:true},
+    {id:'f-cardholder', label:'Cardholder Name',  placeholder:'As printed on card'},
+    {id:'f-cardnumber', label:'Card Number',      placeholder:'16-digit number',    inputType:'password', inputmode:'numeric'},
+    {id:'f-expiry',     label:'Expiry',           placeholder:'MM/YY'},
+    {id:'f-cvv',        label:'CVV',              placeholder:'3 or 4 digits',      inputType:'password', inputmode:'numeric'},
+    {id:'f-pin',        label:'ATM PIN',          placeholder:'4-digit PIN',        inputType:'password', inputmode:'numeric'},
+    {id:'f-notes',      label:'Notes (optional)', placeholder:'Any extra info...'},
+  ],
+  bank: [
+    {id:'f-name',        label:'Account Label',       placeholder:'e.g. SBI Savings',  required:true},
+    {id:'f-bankname',    label:'Bank Name',           placeholder:'e.g. State Bank of India'},
+    {id:'f-accountno',   label:'Account Number',      placeholder:'Account number',    inputType:'password', inputmode:'numeric'},
+    {id:'f-ifsc',        label:'IFSC Code',           placeholder:'e.g. SBIN0001234',  autocapitalize:'characters'},
+    {id:'f-accounttype', label:'Account Type',        inputType:'select',
+      options:[{v:'Savings',l:'Savings'},{v:'Current',l:'Current'},{v:'Salary',l:'Salary'},{v:'NRI',l:'NRI'}]},
+    {id:'f-netbankingid',label:'Net Banking ID',      placeholder:'Username / Customer ID', autocapitalize:'none'},
+    {id:'f-netbankingpw',label:'Net Banking Password',placeholder:'Password',          inputType:'password', strength:true},
+    {id:'f-notes',       label:'Notes (optional)',    placeholder:'Any extra info...'},
+  ],
+  identity: [], // handled specially
+};
+
+const DOC_FIELDS = {
+  aadhaar:  [{id:'f-docnumber',label:'Aadhaar Number',placeholder:'12-digit number',inputType:'password',inputmode:'numeric'},{id:'f-idname',label:'Full Name',placeholder:'As on document'},{id:'f-dob',label:'Date of Birth',placeholder:'DD/MM/YYYY'}],
+  pan:      [{id:'f-docnumber',label:'PAN Number',placeholder:'e.g. ABCDE1234F',autocapitalize:'characters'},{id:'f-idname',label:'Full Name',placeholder:'As on document'},{id:'f-dob',label:'Date of Birth',placeholder:'DD/MM/YYYY'}],
+  passport: [{id:'f-docnumber',label:'Passport Number',placeholder:'e.g. A1234567',autocapitalize:'characters'},{id:'f-idname',label:'Full Name',placeholder:'As on document'},{id:'f-dob',label:'Date of Birth',placeholder:'DD/MM/YYYY'},{id:'f-expiry',label:'Expiry Date',placeholder:'DD/MM/YYYY'},{id:'f-nationality',label:'Nationality',placeholder:'e.g. Indian'}],
+  dl:       [{id:'f-docnumber',label:'DL Number',placeholder:'State + number',autocapitalize:'characters'},{id:'f-idname',label:'Full Name',placeholder:'As on document'},{id:'f-dob',label:'Date of Birth',placeholder:'DD/MM/YYYY'},{id:'f-expiry',label:'Expiry Date',placeholder:'DD/MM/YYYY'},{id:'f-issuingstate',label:'Issuing State',placeholder:'e.g. Andhra Pradesh'}],
+  voterid:  [{id:'f-docnumber',label:'Voter ID Number',placeholder:'e.g. ABC1234567',autocapitalize:'characters'},{id:'f-idname',label:'Full Name',placeholder:'As on document'},{id:'f-dob',label:'Date of Birth',placeholder:'DD/MM/YYYY'}],
+  other:    [{id:'f-docname',label:'Document Name',placeholder:'e.g. Ration Card',required:true},{id:'f-docnumber',label:'Document Number',placeholder:'ID number',inputType:'password'}],
+};
+
+function renderForm() {
+  const body = document.getElementById('form-body');
+  const editEntry = state.editId ? state.entries.find(x=>x.id===state.editId) : null;
+  const type = formState.type;
+  const isEdit = !!state.editId;
+
+  let html = '';
+
+  // Type picker or locked badge
+  if(isEdit){
+    const tm=TYPE_META[type]||TYPE_META.app;
+    html += `<div class="field-group"><div class="field-label">Type</div>
+      <div class="type-locked-badge">${tm.emoji} ${tm.label} <span style="font-size:11px;color:var(--muted);font-weight:500;margin-left:4px">(cannot change)</span></div></div>`;
+  } else {
+    html += `<div class="field-group"><div class="field-label">Entry Type</div>
+      <div class="type-picker-grid">
+        ${Object.entries(TYPE_META).map(([k,v])=>`
+          <button class="type-pick-btn${type===k?' selected':''}" onclick="selectType('${k}')" type="button">
+            <span class="type-pick-icon">${v.emoji}</span>
+            <span class="type-pick-label">${v.label}</span>
+          </button>`).join('')}
+      </div></div>`;
+  }
+
+  // Title field for types that use a generic name
+  if(!['note'].includes(type)){
+    // name field is first in TYPE_FIELDS — already included below
+  }
+
+  // Identity: doc type sub-picker
+  if(type==='identity'){
+    html += `<div class="field-group"><div class="field-label">Document Type</div>
+      <select class="field-input doc-type-select" id="f-doctype" onchange="selectDocType(this.value)">
+        <option value="aadhaar"${formState.docType==='aadhaar'?' selected':''}>Aadhaar</option>
+        <option value="pan"${formState.docType==='pan'?' selected':''}>PAN</option>
+        <option value="passport"${formState.docType==='passport'?' selected':''}>Passport</option>
+        <option value="dl"${formState.docType==='dl'?' selected':''}>Driving Licence</option>
+        <option value="voterid"${formState.docType==='voterid'?' selected':''}>Voter ID</option>
+        <option value="other"${formState.docType==='other'?' selected':''}>Other</option>
+      </select></div>`;
+    html += `<div class="field-group"><div class="field-label">Entry Label</div>
+      <input class="field-input" id="f-name" placeholder="e.g. My Aadhaar" autocomplete="off" value="${esc(editEntry?.name||'')}"/></div>`;
+    const docFields = DOC_FIELDS[formState.docType]||DOC_FIELDS.other;
+    docFields.forEach(f=>{ html+=renderFieldHTML(f, editEntry); });
+    html += renderNotesField(editEntry);
+  } else {
+    const fields = TYPE_FIELDS[type]||TYPE_FIELDS.app;
+    fields.forEach(f=>{ html+=renderFieldHTML(f, editEntry); });
+  }
+
+  // Custom Fields
+  html += `<div class="field-group">
+    <div class="field-label">Custom Fields</div>
+    <div class="custom-fields-list" id="custom-fields-list"></div>
+    <button class="add-field-btn" id="add-cf-btn" type="button">＋ Add Custom Field</button>
+  </div>`;
+
+  html += `<button class="btn-primary" id="form-save" type="button">Save Entry</button>`;
+  html += `<button class="btn-danger${isEdit?'':' hidden'}" id="form-delete" type="button">Delete Entry</button>`;
+
+  body.innerHTML = html;
+
+  // Re-attach listeners
+  document.getElementById('add-cf-btn').addEventListener('click',()=>{
+    customFieldsData.push({name:'',value:'',sensitive:false}); renderCustomFields();
+  });
+  document.getElementById('form-save').addEventListener('click', saveEntry);
+  if(isEdit){
+    document.getElementById('form-delete').addEventListener('click', async()=>{
+      const entry=state.entries.find(e=>e.id===state.editId);
+      const ok=await confirmDelete(entry?entry.name:'this entry');
+      if(!ok) return;
+      state.entries=state.entries.filter(e=>e.id!==state.editId);
+      await saveEntries(); updateStats(); toast('Deleted');
+      showScreen('home-screen'); renderEntries();
+    });
+  }
+  // Password eye toggle & strength
+  const pwField=document.getElementById('f-pass')||document.getElementById('f-netbankingpw');
+  if(pwField){
+    const eyeBtn=document.getElementById('pw-eye');
+    if(eyeBtn) eyeBtn.addEventListener('click',()=>{ pwField.type=pwField.type==='password'?'text':'password'; });
+    pwField.addEventListener('input',e=>updateStrength(e.target.value));
+    if(editEntry && pwField.value) updateStrength(pwField.value);
+  }
+  renderCustomFields();
+}
+
+function renderFieldHTML(f, editEntry) {
+  const val = editEntry ? (getEntryFieldValue(editEntry, f.id)||'') : '';
+  if(f.inputType==='select'){
+    return `<div class="field-group"><div class="field-label">${f.label}</div>
+      <select class="field-input" id="${f.id}">
+        ${f.options.map(o=>`<option value="${o.v}"${val===o.v?' selected':''}>${o.l}</option>`).join('')}
+      </select></div>`;
+  }
+  if(f.inputType==='textarea'){
+    return `<div class="field-group"><div class="field-label">${f.label}</div>
+      <textarea class="field-input" id="${f.id}" placeholder="${f.placeholder||''}" rows="5" style="resize:vertical;line-height:1.5" autocomplete="off">${esc(val)}</textarea></div>`;
+  }
+  const isPassword = f.inputType==='password';
+  const eyeId = (f.id==='f-pass'||f.id==='f-netbankingpw') ? 'pw-eye' : '';
+  const strengthHtml = f.strength ? `<div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div><div class="strength-label" id="strength-label"></div>` : '';
+  const inputmode = f.inputmode ? `inputmode="${f.inputmode}"` : '';
+  const autocap = f.autocapitalize ? `autocapitalize="${f.autocapitalize}"` : 'autocapitalize="off"';
+  const eyeHtml = eyeId ? `<div class="pw-actions"><button class="pw-icon-btn" id="${eyeId}" type="button">👁</button></div>` : '';
+  const wrapOpen = isPassword ? '<div class="pw-wrapper">' : '';
+  const wrapClose = isPassword ? '</div>' : '';
+  return `<div class="field-group"><div class="field-label">${f.label}</div>
+    ${wrapOpen}<input class="field-input" id="${f.id}" type="${isPassword?'password':'text'}"
+      placeholder="${f.placeholder||''}" value="${esc(val)}"
+      autocomplete="off" ${autocap} ${inputmode}/>${eyeHtml}${wrapClose}${strengthHtml}</div>`;
+}
+
+function renderNotesField(editEntry){
+  const val=editEntry?.notes||'';
+  return `<div class="field-group"><div class="field-label">Notes (optional)</div>
+    <input class="field-input" id="f-notes" placeholder="Any extra info..." value="${esc(val)}" autocomplete="off"/></div>`;
+}
+
+// Map field id to entry property
+function getEntryFieldValue(e, fieldId) {
+  const map = {
+    'f-name':e.name,'f-url':e.url,'f-user':e.username,'f-pass':e.password,
+    'f-notes':e.notes,'f-ssid':e.ssid,'f-sectype':e.securityType,
+    'f-note':e.note,'f-cardholder':e.cardHolder,'f-cardnumber':e.cardNumber,
+    'f-expiry':e.expiry,'f-cvv':e.cvv,'f-pin':e.pin,
+    'f-bankname':e.bankName,'f-accountno':e.accountNo,'f-ifsc':e.ifsc,
+    'f-accounttype':e.accountType,'f-netbankingid':e.netBankingId,'f-netbankingpw':e.netBankingPassword,
+    'f-docname':e.docName,'f-docnumber':e.docNumber,'f-idname':e.idName,
+    'f-dob':e.dob,'f-nationality':e.nationality,'f-issuingstate':e.issuingState,
+    'f-cardholder':e.cardHolder,
+  };
+  return map[fieldId]??'';
+}
+
+window.selectType=function(type){
+  formState.type=type; renderForm();
+};
+window.selectDocType=function(docType){
+  formState.docType=docType; renderForm();
+};
+
+function collectFormData() {
+  const g=id=>{ const el=document.getElementById(id); return el?el.value.trim():''; };
+  const type=formState.type;
+  const base = {
+    id: state.editId || Date.now().toString(36)+Math.random().toString(36).slice(2),
+    type,
+    name: g('f-name'),
+    fav: state.editId ? (state.entries.find(e=>e.id===state.editId)||{}).fav||false : false,
+    created: state.editId ? (state.entries.find(e=>e.id===state.editId)||{}).created||Date.now() : Date.now(),
+    updated: Date.now(),
+    customFields: customFieldsData.filter(f=>f.name||f.value),
+  };
+  switch(type){
+    case 'app':    return {...base, url:g('f-url'), username:g('f-user'), password:g('f-pass'), notes:g('f-notes')};
+    case 'wifi':   return {...base, ssid:g('f-ssid'), password:g('f-pass'), securityType:g('f-sectype'), notes:g('f-notes')};
+    case 'note':   return {...base, note:g('f-note')};
+    case 'card':   return {...base, cardHolder:g('f-cardholder'), cardNumber:g('f-cardnumber'), expiry:g('f-expiry'), cvv:g('f-cvv'), pin:g('f-pin'), notes:g('f-notes')};
+    case 'bank':   return {...base, bankName:g('f-bankname'), accountNo:g('f-accountno'), ifsc:g('f-ifsc'), accountType:g('f-accounttype'), netBankingId:g('f-netbankingid'), netBankingPassword:g('f-netbankingpw'), notes:g('f-notes')};
+    case 'identity':
+      const docType=formState.docType;
+      return {...base, docType, docName:g('f-docname'), docNumber:g('f-docnumber'), idName:g('f-idname'), dob:g('f-dob'), expiry:g('f-expiry'), nationality:g('f-nationality'), issuingState:g('f-issuingstate'), notes:g('f-notes')};
+    default: return base;
+  }
+}
+
+function validateEntry(entry) {
+  if(!entry.name && entry.type!=='wifi'){ toast('Name is required'); return false; }
+  if(entry.type==='wifi' && !entry.ssid){ toast('Network name is required'); return false; }
+  if(entry.type==='app' && !entry.password){ toast('Password is required'); return false; }
+  if(entry.type==='note' && !entry.note){ toast('Note cannot be empty'); return false; }
+  // For wifi, use ssid as name if no name set
+  if(entry.type==='wifi' && !entry.name) entry.name=entry.ssid;
+  return true;
+}
+
+async function saveEntry(){
+  const entry=collectFormData();
+  if(!validateEntry(entry)) return;
+  if(state.editId){ const idx=state.entries.findIndex(e=>e.id===state.editId); state.entries[idx]=entry; currentDetail=entry; }
+  else state.entries.unshift(entry);
+  await saveEntries(); updateStats();
+  toast(state.editId?'Updated ✓':'Saved ✓');
+  if(state.editId) openDetail(entry.id);
+  else { showScreen('home-screen'); renderEntries(); }
+}
 
 function renderCustomFields() {
   const container=document.getElementById('custom-fields-list');
+  if(!container) return;
   container.innerHTML=customFieldsData.map((cf,i)=>`
     <div class="custom-field-row">
       <input class="field-input cf-name" placeholder="Label" value="${esc(cf.name)}" oninput="customFieldsData[${i}].name=this.value" autocomplete="off"/>
       <input class="field-input" placeholder="Value" value="${esc(cf.value)}" oninput="customFieldsData[${i}].value=this.value" autocomplete="off" type="${cf.sensitive?'password':'text'}"/>
-      <button class="cf-sensitive${cf.sensitive?' on':''}" onclick="toggleCFSensitive(${i})" title="Sensitive">${cf.sensitive?'🔒':'👁'}</button>
-      <button class="cf-del" onclick="removeCustomField(${i})">✕</button>
+      <button class="cf-sensitive${cf.sensitive?' on':''}" onclick="toggleCFSensitive(${i})" title="Sensitive" type="button">${cf.sensitive?'🔒':'👁'}</button>
+      <button class="cf-del" onclick="removeCustomField(${i})" type="button">✕</button>
     </div>`).join('');
 }
 
 window.removeCustomField=function(i){ customFieldsData.splice(i,1); renderCustomFields(); };
 window.toggleCFSensitive=function(i){ customFieldsData[i].sensitive=!customFieldsData[i].sensitive; renderCustomFields(); };
-document.getElementById('add-cf-btn').addEventListener('click',()=>{
-  customFieldsData.push({name:'',value:'',sensitive:false}); renderCustomFields();
-});
 
 function openForm(editId=null) {
   state.editId=editId;
   document.getElementById('form-title').textContent=editId?'Edit Entry':'Add Entry';
-  const delBtn=document.getElementById('form-delete');
   customFieldsData=[];
   if(editId){
     const e=state.entries.find(x=>x.id===editId);
-    document.getElementById('f-name').value=e.name;
-    document.getElementById('f-cat').value=e.category;
-    document.getElementById('f-user').value=e.username||'';
-    document.getElementById('f-pass').value=e.password;
-    document.getElementById('f-notes').value=e.notes||'';
+    formState.type=e.type||'app';
+    formState.docType=e.docType||'aadhaar';
     customFieldsData=(e.customFields||[]).map(cf=>({...cf}));
-    delBtn.classList.remove('hidden');
-    updateStrength(e.password);
   } else {
-    ['f-name','f-user','f-pass','f-notes'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('f-cat').value='social';
-    delBtn.classList.add('hidden');
-    updateStrength('');
+    formState.type='app';
+    formState.docType='aadhaar';
   }
-  renderCustomFields();
+  renderForm();
   showScreen('form-screen');
 }
-
-document.getElementById('add-btn').addEventListener('click',()=>openForm());
-document.getElementById('form-back').addEventListener('click',()=>{
-  if(state.editId) showScreen('detail-screen');
-  else { showScreen('home-screen'); renderEntries(); }
-});
-
-// Eye toggle
-document.getElementById('pw-eye').addEventListener('click',()=>{
-  const inp=document.getElementById('f-pass');
-  inp.type=inp.type==='password'?'text':'password';
-});
 
 // ═══════════════════════════════════════
 //  SEARCH CLEAR (✕) BUTTON
@@ -1572,7 +1858,7 @@ searchClear.addEventListener('click', () => {
   searchInput.value = '';
   searchInput.focus();
   searchClear.classList.remove('visible');
-  // Reset category filter to All
+  // Reset type filter to All
   state.activeFilter = 'all';
   document.querySelectorAll('.pill').forEach(p => p.classList.toggle('active', p.dataset.cat === 'all'));
   renderEntries();
@@ -1594,10 +1880,8 @@ document.getElementById('stat-cats-card').addEventListener('click', () => {
 // ═══════════════════════════════════════
 //  CATEGORIES INLINE PANEL
 // ═══════════════════════════════════════
-const CAT_DOT_COLOR = {
-  social:'#5b5ff5', banking:'#10b981', work:'#f59e0b', email:'#ec4899', other:'#9096b8'
-};
-const CAT_NAMES = {social:'Social', banking:'Banking', work:'Work', email:'Email', other:'Other'};
+const CAT_DOT_COLOR = Object.fromEntries(Object.entries(TYPE_META).map(([k,v])=>[k,v.color]));
+const CAT_NAMES = Object.fromEntries(Object.entries(TYPE_META).map(([k,v])=>[k,v.label]));
 
 let catPanelOpen = false;
 
@@ -1605,26 +1889,24 @@ function toggleCatPanel() {
   catPanelOpen = !catPanelOpen;
   const panel = document.getElementById('cat-inline-panel');
   if (catPanelOpen) {
-    // Populate before opening so height animates correctly
     const counts = {};
-    state.entries.forEach(e => { counts[e.category] = (counts[e.category]||0) + 1; });
+    state.entries.forEach(e => { counts[e.type] = (counts[e.type]||0) + 1; });
     const total = state.entries.length || 1;
     const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
     const list = document.getElementById('cat-breakdown-list');
-    list.innerHTML = sorted.length ? sorted.map(([cat, count]) => {
+    list.innerHTML = sorted.length ? sorted.map(([type, count]) => {
       const pct = Math.round((count / total) * 100);
-      const color = CAT_DOT_COLOR[cat] || '#9096b8';
+      const tm = TYPE_META[type] || TYPE_META.app;
       return `
         <div class="cat-breakdown-item">
-          <div class="cat-breakdown-dot" style="background:${color}"></div>
-          <div class="cat-breakdown-name">${CAT_EMOJI[cat]||'📁'} ${CAT_NAMES[cat]||cat}</div>
-          <div class="cat-breakdown-count" style="color:${color}">${count}</div>
+          <div class="cat-breakdown-dot" style="background:${tm.color}"></div>
+          <div class="cat-breakdown-name">${tm.emoji} ${tm.label}</div>
+          <div class="cat-breakdown-count" style="color:${tm.color}">${count}</div>
           <span class="cat-breakdown-pct">${pct}%</span>
         </div>`;
     }).join('') : '<div style="text-align:center;color:var(--muted);font-size:14px;padding:12px 0;">No entries yet</div>';
   }
   panel.classList.toggle('open', catPanelOpen);
-  // Flip the stat card to signal open/closed state
   document.getElementById('stat-cats-card').style.background = catPanelOpen ? 'var(--surface2)' : '';
 }
 
@@ -1683,40 +1965,12 @@ function updateStrength(pw) {
   const l=lvl[Math.min(s,4)];
   fill.style.width=l.w; fill.style.background=l.bg; lbl.textContent=l.t; lbl.style.color=l.bg;
 }
-document.getElementById('f-pass').addEventListener('input',e=>updateStrength(e.target.value));
-
-// Save
-document.getElementById('form-save').addEventListener('click',async()=>{
-  const name=document.getElementById('f-name').value.trim();
-  const pass=document.getElementById('f-pass').value;
-  if(!name){ toast('App name is required'); return; }
-  if(!pass){ toast('Password is required'); return; }
-  const now=Date.now();
-  const entry={
-    id: state.editId || now.toString(36)+Math.random().toString(36).slice(2),
-    name, category:document.getElementById('f-cat').value,
-    username:document.getElementById('f-user').value.trim(),
-    password:pass, notes:document.getElementById('f-notes').value.trim(),
-    customFields:customFieldsData.filter(f=>f.name||f.value),
-    fav: state.editId ? (state.entries.find(e=>e.id===state.editId)||{}).fav||false : false,
-    created: state.editId ? (state.entries.find(e=>e.id===state.editId)||{}).created||now : now,
-    updated: now,
-  };
-  if(state.editId){ const idx=state.entries.findIndex(e=>e.id===state.editId); state.entries[idx]=entry; currentDetail=entry; }
-  else state.entries.unshift(entry);
-  await saveEntries(); updateStats();
-  toast(state.editId?'Updated ✓':'Saved ✓');
-  if(state.editId) openDetail(entry.id);
+document.getElementById('add-btn').addEventListener('click',()=>openForm());
+document.getElementById('add-btn-fav') && document.getElementById('add-btn-fav').addEventListener('click',()=>openForm());
+document.getElementById('add-btn-settings') && document.getElementById('add-btn-settings').addEventListener('click',()=>openForm());
+document.getElementById('form-back').addEventListener('click',()=>{
+  if(state.editId) showScreen('detail-screen');
   else { showScreen('home-screen'); renderEntries(); }
-});
-
-document.getElementById('form-delete').addEventListener('click',async()=>{
-  const entry = state.entries.find(e=>e.id===state.editId);
-  const ok = await confirmDelete(entry ? entry.name : 'this entry');
-  if(!ok) return;
-  state.entries=state.entries.filter(e=>e.id!==state.editId);
-  await saveEntries(); updateStats(); toast('Deleted');
-  showScreen('home-screen'); renderEntries();
 });
 
 // ═══════════════════════════════════════
@@ -1741,7 +1995,7 @@ document.getElementById('import-file').addEventListener('change',async e=>{
     const text=await file.text();
     const parsed=JSON.parse(text);
     if(!parsed.data) throw new Error('invalid');
-    const entries=await Crypto.decrypt(parsed.data, savedPIN);
+    const entries=migrateEntries(await Crypto.decrypt(parsed.data, savedPIN));
     if(!Array.isArray(entries)) throw new Error('corrupt');
     state.entries=entries;
     // Re-encrypt with current PIN and save — do NOT store the raw backup blob
