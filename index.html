@@ -748,6 +748,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <button class="num-btn empty"></button><button class="num-btn" data-n="0">0</button>
     <button class="num-btn del" id="del-btn">⌫</button>
   </div>
+  <button id="bio-unlock-btn" style="display:none;margin:18px auto 0;background:transparent;border:none;font-size:38px;cursor:pointer;opacity:.85">👆</button>
 </div>
 
 <!-- ══════════ HOME SCREEN ══════════ -->
@@ -838,6 +839,9 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="detail-name" id="d-name"></div>
     <span class="detail-cat-badge" id="d-cat"></span>
     <div class="detail-updated" id="d-updated"></div>
+    <div id="d-sensitivity-wrap" style="margin-top:8px;display:none">
+      <button id="d-sensitivity-btn" style="background:transparent;border:1.5px solid var(--border);border-radius:20px;padding:4px 14px;font-size:12px;color:var(--muted);cursor:pointer;font-family:var(--font)"></button>
+    </div>
   </div>
 
   <div class="detail-fields" id="detail-fields-container">
@@ -857,6 +861,11 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     </div>
 
     <div class="settings-section-label">Security</div>
+    <div class="settings-item" id="s-biometric" style="cursor:default">
+      <span class="s-icon">👆</span>
+      <div class="s-info"><div class="s-title">Biometric Unlock</div><div class="s-desc" id="bio-desc">Use fingerprint to unlock</div></div>
+      <button class="theme-toggle" id="bio-toggle"></button>
+    </div>
     <div class="settings-item" id="s-change-pin">
       <span class="s-icon">🔑</span>
       <div class="s-info"><div class="s-title">Change PIN</div><div class="s-desc">Update your 6-digit PIN</div></div>
@@ -900,6 +909,44 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <div id="lock-overlay">
   <div class="lock-icon-wrap">🔐</div>
   <p>Vault locked</p>
+</div>
+
+<!-- ══════════ STEP-UP PIN MODAL ══════════ -->
+<div id="stepup-overlay" class="delete-overlay" style="display:none">
+  <div class="delete-sheet" id="stepup-sheet" style="padding-bottom:32px">
+    <div class="delete-sheet-handle"></div>
+    <div class="delete-sheet-icon">🔐</div>
+    <div class="delete-sheet-title" id="stepup-title">Enter PIN to continue</div>
+    <div class="pin-dots" id="stepup-dots" style="justify-content:center;margin:18px 0 4px">
+      <div class="pin-dot" id="sd0"></div><div class="pin-dot" id="sd1"></div>
+      <div class="pin-dot" id="sd2"></div><div class="pin-dot" id="sd3"></div>
+      <div class="pin-dot" id="sd4"></div><div class="pin-dot" id="sd5"></div>
+    </div>
+    <div class="pin-label" id="stepup-label" style="text-align:center;margin-bottom:16px;font-size:13px"></div>
+    <div class="numpad" style="max-width:280px;margin:0 auto">
+      <button class="num-btn" data-su="1">1</button><button class="num-btn" data-su="2">2</button><button class="num-btn" data-su="3">3</button>
+      <button class="num-btn" data-su="4">4</button><button class="num-btn" data-su="5">5</button><button class="num-btn" data-su="6">6</button>
+      <button class="num-btn" data-su="7">7</button><button class="num-btn" data-su="8">8</button><button class="num-btn" data-su="9">9</button>
+      <button class="num-btn empty"></button><button class="num-btn" data-su="0">0</button>
+      <button class="num-btn del" id="stepup-del">⌫</button>
+    </div>
+    <button class="delete-sheet-cancel" id="stepup-cancel" style="margin-top:16px">Cancel</button>
+  </div>
+</div>
+
+<!-- ══════════ PIN CHANGE WARNING SHEET ══════════ -->
+<div id="pinchange-overlay" class="delete-overlay" style="display:none">
+  <div class="delete-sheet" id="pinchange-sheet">
+    <div class="delete-sheet-handle"></div>
+    <div class="delete-sheet-icon">⚠️</div>
+    <div class="delete-sheet-title">Back up before changing PIN</div>
+    <div class="delete-sheet-msg">Old backup files will <strong>stop working</strong> after a PIN change — they're encrypted with your current PIN. Export a fresh backup first so you don't lose access.</div>
+    <div class="delete-sheet-actions" style="flex-direction:column;gap:10px">
+      <button class="delete-sheet-confirm" id="pinchange-export" style="background:var(--accent)">📤 Export Now</button>
+      <button class="delete-sheet-cancel" id="pinchange-proceed" style="color:var(--text);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:13px;font-size:15px;font-weight:600;cursor:pointer;background:transparent">Change PIN anyway</button>
+      <button class="delete-sheet-cancel" id="pinchange-cancel">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══════════ DELETE CONFIRM DIALOG ══════════ -->
@@ -955,6 +1002,7 @@ let state = {
   entries:[], currentPIN:'', unlocked:false, editId:null,
   activeFilter:'all', pinBuffer:'', pinMode:'unlock',
   pinTemp:'', failCount:0, currentNav:'home', detailSource:'home',
+  unlockedViaBio: false,
 };
 
 const Store = {
@@ -964,6 +1012,162 @@ const Store = {
 
 let autoLockTimer=null;
 const AUTO_LOCK_MS = 2*60*1000;
+
+// ═══════════════════════════════════════
+//  SENSITIVE TYPES (default tiers)
+// ═══════════════════════════════════════
+const SENSITIVE_TYPES = new Set(['card','bank','identity']);
+function isEntrySensitive(entry) {
+  if (entry.sensitiveOverride === true)  return true;
+  if (entry.sensitiveOverride === false) return false;
+  return SENSITIVE_TYPES.has(entry.type);
+}
+
+// ═══════════════════════════════════════
+//  STEP-UP PIN
+// ═══════════════════════════════════════
+let stepUpResolve = null;
+let stepUpBuffer = '';
+
+function updateStepUpDots(err=false) {
+  for(let i=0;i<6;i++){
+    const d=document.getElementById('sd'+i);
+    d.classList.toggle('filled', i<stepUpBuffer.length && !err);
+    d.classList.toggle('error', err);
+  }
+}
+
+function stepUpError(msg) {
+  updateStepUpDots(true);
+  const lbl=document.getElementById('stepup-label');
+  lbl.textContent=msg; lbl.style.color='var(--red)';
+  setTimeout(()=>{ stepUpBuffer=''; updateStepUpDots(false); lbl.textContent=''; lbl.style.color=''; },900);
+}
+
+async function handleStepUpDigit(d) {
+  if(stepUpBuffer.length>=6) return;
+  stepUpBuffer+=d; updateStepUpDots();
+  if(stepUpBuffer.length<6) return;
+  const entered=stepUpBuffer;
+  await new Promise(r=>setTimeout(r,120));
+  const hash=await Crypto.hashPIN(entered);
+  if(hash!==Store.get('vault_pin')){
+    stepUpError('Wrong PIN');
+    return;
+  }
+  closeStepUp(true);
+}
+
+function closeStepUp(success=false) {
+  const overlay=document.getElementById('stepup-overlay');
+  overlay.style.display='none';
+  stepUpBuffer=''; updateStepUpDots();
+  document.getElementById('stepup-label').textContent='';
+  if(stepUpResolve){ stepUpResolve(success); stepUpResolve=null; }
+}
+
+// Returns Promise<bool> — resolves true if PIN verified, false if cancelled
+function requirePIN(title='Enter PIN to continue') {
+  return new Promise(resolve => {
+    stepUpResolve = resolve;
+    stepUpBuffer = '';
+    updateStepUpDots();
+    document.getElementById('stepup-title').textContent = title;
+    document.getElementById('stepup-label').textContent = '';
+    const overlay = document.getElementById('stepup-overlay');
+    overlay.style.display = 'flex';
+    // animate sheet in
+    const sheet = document.getElementById('stepup-sheet');
+    sheet.style.transform = 'translateY(100%)';
+    requestAnimationFrame(()=>{ sheet.style.transition='transform .28s cubic-bezier(.32,1,.6,1)'; sheet.style.transform=''; });
+  });
+}
+
+document.querySelectorAll('.num-btn[data-su]').forEach(b=>b.addEventListener('click',()=>handleStepUpDigit(b.dataset.su)));
+document.getElementById('stepup-del').addEventListener('click',()=>{ stepUpBuffer=stepUpBuffer.slice(0,-1); updateStepUpDots(); });
+document.getElementById('stepup-cancel').addEventListener('click',()=>closeStepUp(false));
+document.getElementById('stepup-overlay').addEventListener('click', e=>{ if(e.target===document.getElementById('stepup-overlay')) closeStepUp(false); });
+
+// ═══════════════════════════════════════
+//  BIOMETRIC
+// ═══════════════════════════════════════
+function isBioEnabled() { return Store.get('vault_bio')==='1'; }
+function isBioAvailable() { return !!(window.PublicKeyCredential); }
+
+async function attemptBiometric() {
+  try {
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const cred = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        timeout: 30000,
+        userVerification: 'required',
+        rpId: window.location.hostname,
+        allowCredentials: [],
+      }
+    });
+    return !!cred;
+  } catch(e) {
+    return false;
+  }
+}
+
+async function registerBiometric() {
+  try {
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const userId = crypto.getRandomValues(new Uint8Array(16));
+    await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'Vault', id: window.location.hostname },
+        user: { id: userId, name: 'vault-user', displayName: 'Vault User' },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { userVerification: 'required', authenticatorAttachment: 'platform' },
+        timeout: 30000,
+      }
+    });
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+function updateBioToggleUI() {
+  const on = isBioEnabled();
+  document.getElementById('bio-toggle').classList.toggle('on', on);
+  document.getElementById('bio-desc').textContent = on ? 'Fingerprint unlock active' : 'Use fingerprint to unlock';
+  if(!isBioAvailable()){
+    document.getElementById('s-biometric').style.opacity='0.45';
+    document.getElementById('bio-desc').textContent='Not supported on this device';
+  }
+}
+
+document.getElementById('bio-toggle').addEventListener('click', async () => {
+  if(!isBioAvailable()){ toast('Biometrics not supported on this device'); return; }
+  if(isBioEnabled()){
+    // Turning off — require PIN first
+    const ok = await requirePIN('Enter PIN to disable biometric');
+    if(!ok) return;
+    Store.set('vault_bio','0');
+    updateBioToggleUI();
+    toast('Biometric unlock disabled');
+  } else {
+    // Turning on — require PIN + register fingerprint
+    const ok = await requirePIN('Enter PIN to enable biometric');
+    if(!ok) return;
+    toast('Scan your fingerprint to register...');
+    const registered = await registerBiometric();
+    if(registered){
+      Store.set('vault_bio','1');
+      updateBioToggleUI();
+      toast('Biometric unlock enabled 👆');
+    } else {
+      toast('Registration failed or cancelled');
+    }
+  }
+});
+
+
 
 // ═══════════════════════════════════════
 //  THEME
@@ -1004,8 +1208,18 @@ document.querySelectorAll('[data-nav]').forEach(item => {
 document.getElementById('lock-nav-btn').addEventListener('click', lockVault);
 document.getElementById('lock-nav-btn2').addEventListener('click', lockVault);
 document.getElementById('lock-nav-btn3').addEventListener('click', lockVault);
-document.getElementById('add-btn-fav').addEventListener('click', () => openForm());
-document.getElementById('add-btn-settings').addEventListener('click', () => openForm());
+document.getElementById('add-btn').addEventListener('click', async () => {
+  if(state.unlockedViaBio){ const ok=await requirePIN('Enter PIN to add entry'); if(!ok) return; }
+  openForm();
+});
+document.getElementById('add-btn-fav').addEventListener('click', async () => {
+  if(state.unlockedViaBio){ const ok=await requirePIN('Enter PIN to add entry'); if(!ok) return; }
+  openForm();
+});
+document.getElementById('add-btn-settings').addEventListener('click', async () => {
+  if(state.unlockedViaBio){ const ok=await requirePIN('Enter PIN to add entry'); if(!ok) return; }
+  openForm();
+});
 
 // ═══════════════════════════════════════
 //  TOAST
@@ -1026,12 +1240,14 @@ function resetAutoLock() {
   autoLockTimer = setTimeout(lockVault, AUTO_LOCK_MS);
 }
 function lockVault() {
-  state.unlocked=false; state.currentPIN='';
+  state.unlocked=false; state.unlockedViaBio=false;
+  // Keep currentPIN in memory for biometric re-unlock — cleared only on PIN change
   clearTimeout(autoLockTimer);
   const ov=document.getElementById('lock-overlay');
   ov.classList.add('visible');
   setTimeout(()=>{ ov.classList.remove('visible'); initPINScreen('unlock'); showScreen('pin-screen'); },700);
 }
+document.getElementById('bio-unlock-btn').addEventListener('click', tryBiometricUnlock);
 document.addEventListener('touchstart', resetAutoLock);
 document.addEventListener('click', resetAutoLock);
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state.unlocked && !state.importInProgress) lockVault(); });
@@ -1053,6 +1269,17 @@ function initPINScreen(mode) {
   if(mode==='unlock'){
     const lock = parseInt(Store.get('vault_lockout')||'0');
     if(Date.now()<lock){ const s=Math.ceil((lock-Date.now())/1000); lbl.textContent=`Too many attempts. Wait ${s}s`; lbl.classList.add('error'); }
+    // Show biometric button if enabled and available
+    const bioBtn = document.getElementById('bio-unlock-btn');
+    if(isBioEnabled() && isBioAvailable()){
+      bioBtn.style.display='block';
+      // Auto-trigger after short delay
+      setTimeout(tryBiometricUnlock, 400);
+    } else {
+      bioBtn.style.display='none';
+    }
+  } else {
+    document.getElementById('bio-unlock-btn').style.display='none';
   }
 }
 
@@ -1098,7 +1325,7 @@ async function handlePINDigit(d) {
     Store.set('vault_fails',0);
     try{ const enc=Store.get('vault_data'); const raw=enc?await Crypto.decrypt(enc,entered):[]; state.entries=migrateEntries(raw); }
     catch(e){ state.entries=[]; }
-    state.currentPIN=entered; unlockSuccess();
+    state.currentPIN=entered; state.unlockedViaBio=false; unlockSuccess();
   } else if(state.pinMode==='change-old'){
     if(await Crypto.hashPIN(entered)!==Store.get('vault_pin')){ pinError('Wrong PIN'); return; }
     state.pinTemp=entered; initPINScreen('change-new'); showScreen('pin-screen');
@@ -1108,7 +1335,10 @@ async function handlePINDigit(d) {
     if(entered!==state.pinTemp){ pinError('PINs do not match'); return; }
     Store.set('vault_pin', await Crypto.hashPIN(entered));
     state.currentPIN=entered; await saveEntries();
-    toast('PIN changed ✓'); showScreen('settings-screen');
+    // Disable biometric after PIN change — user must re-enable with new PIN
+    if(isBioEnabled()){ Store.set('vault_bio','0'); updateBioToggleUI(); toast('PIN changed ✓ — re-enable biometric in Settings'); }
+    else { toast('PIN changed ✓'); }
+    showScreen('settings-screen');
   }
 }
 
@@ -1117,7 +1347,26 @@ function unlockSuccess() {
   const lbl=document.getElementById('pin-label');
   lbl.textContent='✓ Unlocked'; lbl.className='pin-label success';
   applyTheme(Store.get('vault_theme')==='dark');
+  document.getElementById('bio-unlock-btn').style.display='none';
   setTimeout(()=>{ showScreen('home-screen'); renderEntries(true); updateStats(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); },300);
+}
+
+async function tryBiometricUnlock() {
+  const lbl=document.getElementById('pin-label');
+  lbl.textContent='Touch sensor…'; lbl.className='pin-label';
+  const ok = await attemptBiometric();
+  if(ok){
+    const enc=Store.get('vault_data');
+    try{ const raw=enc?await Crypto.decrypt(enc,state.currentPIN):[]; state.entries=migrateEntries(raw); }
+    catch(e){ state.entries=[]; }
+    state.unlocked=true; state.unlockedViaBio=true;
+    lbl.textContent='✓ Unlocked'; lbl.className='pin-label success';
+    applyTheme(Store.get('vault_theme')==='dark');
+    document.getElementById('bio-unlock-btn').style.display='none';
+    setTimeout(()=>{ showScreen('home-screen'); renderEntries(true); updateStats(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); },300);
+  } else {
+    lbl.textContent='Use PIN instead'; lbl.className='pin-label';
+  }
 }
 
 document.querySelectorAll('.num-btn[data-n]').forEach(b=>b.addEventListener('click',()=>handlePINDigit(b.dataset.n)));
@@ -1247,6 +1496,10 @@ function renderEntries(animate=false) {
     const id=btn.dataset.del;
     const entry=state.entries.find(e=>e.id===id);
     if(!entry) return;
+    if(state.unlockedViaBio){
+      const ok = await requirePIN('Enter PIN to delete');
+      if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped'); setTimeout(()=>btn.classList.remove('revealed'),280); return; }
+    }
     const ok = await confirmDelete(entry.name);
     if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped'); setTimeout(()=>btn.classList.remove('revealed'),280); return; }
     state.entries=state.entries.filter(e=>e.id!==id);
@@ -1293,6 +1546,10 @@ function renderFavs() {
     const id=btn.dataset.del;
     const entry=state.entries.find(e=>e.id===id);
     if(!entry) return;
+    if(state.unlockedViaBio){
+      const ok = await requirePIN('Enter PIN to delete');
+      if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped'); setTimeout(()=>btn.classList.remove('revealed'),280); return; }
+    }
     const ok = await confirmDelete(entry.name);
     if(!ok) { const card=btn.closest('.entry-card-wrap').querySelector('.entry-card'); card.style.marginRight=''; card.classList.remove('swiped'); setTimeout(()=>btn.classList.remove('revealed'),280); return; }
     state.entries=state.entries.filter(e=>e.id!==id);
@@ -1322,8 +1579,13 @@ document.getElementById('cat-pills').addEventListener('click', e=>{
 // ═══════════════════════════════════════
 let currentDetail=null;
 
-function openDetail(id) {
+async function openDetail(id) {
   const entry=state.entries.find(e=>e.id===id); if(!entry) return;
+  // Step-up auth for sensitive entries when biometric was used to unlock
+  if(isBioEnabled() && isEntrySensitive(entry)){
+    const ok = await requirePIN(`PIN required to view ${entry.name}`);
+    if(!ok) return;
+  }
   state.detailSource = state.currentNav;
   currentDetail=entry;
   const tm=TYPE_META[entry.type]||TYPE_META.app;
@@ -1334,6 +1596,33 @@ function openDetail(id) {
   cb.style.background=tm.bg; cb.style.color=tm.color;
   document.getElementById('d-updated').textContent='Last updated '+timeAgo(entry.updated||entry.created);
   document.getElementById('detail-fav-btn').textContent=entry.fav?'⭐':'☆';
+
+  // Sensitivity override toggle (only shown when biometric is enabled)
+  const sensWrap = document.getElementById('d-sensitivity-wrap');
+  const sensBtn = document.getElementById('d-sensitivity-btn');
+  if(state.unlockedViaBio){
+    sensWrap.style.display='block';
+    const isSens = isEntrySensitive(entry);
+    sensBtn.textContent = isSens ? '🔒 PIN required to view' : '👁 Viewable with biometric';
+    sensBtn.style.color = isSens ? 'var(--red)' : 'var(--accent)';
+    sensBtn.onclick = async () => {
+      if(isSens){
+        // Making it less sensitive — require PIN
+        const ok = await requirePIN('Enter PIN to change sensitivity');
+        if(!ok) return;
+        entry.sensitiveOverride = false;
+      } else {
+        entry.sensitiveOverride = true;
+      }
+      await saveEntries();
+      const nowSens = isEntrySensitive(entry);
+      sensBtn.textContent = nowSens ? '🔒 PIN required to view' : '👁 Viewable with biometric';
+      sensBtn.style.color = nowSens ? 'var(--red)' : 'var(--accent)';
+      toast(nowSens ? 'Entry marked sensitive 🔒' : 'Entry marked normal 👁');
+    };
+  } else {
+    sensWrap.style.display='none';
+  }
 
   // Build dynamic fields
   const container=document.getElementById('detail-fields-container');
@@ -1574,6 +1863,10 @@ document.getElementById('detail-back').addEventListener('click',()=>{
 // Detail screen — delete button
 document.getElementById('detail-delete-btn').addEventListener('click', async () => {
   if (!currentDetail) return;
+  if(state.unlockedViaBio){
+    const ok = await requirePIN('Enter PIN to delete');
+    if(!ok) return;
+  }
   const ok = await confirmDelete(currentDetail.name);
   if (!ok) return;
   state.entries = state.entries.filter(e => e.id !== currentDetail.id);
@@ -1582,7 +1875,13 @@ document.getElementById('detail-delete-btn').addEventListener('click', async () 
   if(state.detailSource==='fav'){ showScreen('fav-screen'); renderFavs(); }
   else { showScreen('home-screen'); renderEntries(); }
 });
-document.getElementById('detail-edit').addEventListener('click',()=>openForm(currentDetail.id));
+document.getElementById('detail-edit').addEventListener('click', async () => {
+  if(state.unlockedViaBio){
+    const ok = await requirePIN('Enter PIN to edit');
+    if(!ok) return;
+  }
+  openForm(currentDetail.id);
+});
 document.getElementById('detail-fav-btn').addEventListener('click',async()=>{
   if(!currentDetail) return;
   currentDetail.fav=!currentDetail.fav;
@@ -2124,7 +2423,7 @@ function updateStrength(pw) {
   const l=lvl[Math.min(s,4)];
   fill.style.width=l.w; fill.style.background=l.bg; lbl.textContent=l.t; lbl.style.color=l.bg;
 }
-document.getElementById('add-btn').addEventListener('click',()=>openForm());
+// add-btn handled above with step-up auth
 document.getElementById('add-btn-fav') && document.getElementById('add-btn-fav').addEventListener('click',()=>openForm());
 document.getElementById('add-btn-settings') && document.getElementById('add-btn-settings').addEventListener('click',()=>openForm());
 document.getElementById('form-back').addEventListener('click',()=>{
@@ -2136,9 +2435,20 @@ document.getElementById('form-back').addEventListener('click',()=>{
 //  SETTINGS
 // ═══════════════════════════════════════
 document.getElementById('s-lock').addEventListener('click', lockVault);
-document.getElementById('s-change-pin').addEventListener('click',()=>{ initPINScreen('change-old'); showScreen('pin-screen'); });
+document.getElementById('s-change-pin').addEventListener('click', async () => {
+  const choice = await showPinChangeWarning();
+  if(choice === null) return; // cancelled
+  if(choice === 'export') { doExport(); return; } // exported — don't proceed to PIN change yet so they can verify
+  initPINScreen('change-old'); showScreen('pin-screen');
+});
 
-document.getElementById('s-export').addEventListener('click', doExport);
+document.getElementById('s-export').addEventListener('click', async () => {
+  if(state.unlockedViaBio){
+    const ok = await requirePIN('Enter PIN to export');
+    if(!ok) return;
+  }
+  doExport();
+});
 
 document.getElementById('s-import').addEventListener('click',()=>{
   state.importInProgress=true;  // prevent visibilitychange from locking vault during file picker
@@ -2170,9 +2480,33 @@ document.getElementById('import-file').addEventListener('change',async e=>{
 // ═══════════════════════════════════════
 //  CUSTOM DELETE CONFIRM
 // ═══════════════════════════════════════
+// ═══════════════════════════════════════
+//  PIN CHANGE WARNING
+// ═══════════════════════════════════════
+function showPinChangeWarning() {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('pinchange-overlay');
+    const sheet = document.getElementById('pinchange-sheet');
+    overlay.style.display = 'flex';
+    sheet.style.transform = 'translateY(100%)';
+    requestAnimationFrame(()=>{ sheet.style.transition='transform .28s cubic-bezier(.32,1,.6,1)'; sheet.style.transform=''; });
+
+    const cleanup = (val) => {
+      sheet.style.transition='transform .22s ease-in';
+      sheet.style.transform='translateY(100%)';
+      setTimeout(()=>{ overlay.style.display='none'; sheet.style.transform=''; sheet.style.transition=''; },220);
+      resolve(val);
+    };
+
+    document.getElementById('pinchange-export').onclick   = () => cleanup('export');
+    document.getElementById('pinchange-proceed').onclick  = () => cleanup('proceed');
+    document.getElementById('pinchange-cancel').onclick   = () => cleanup(null);
+    overlay.onclick = (e) => { if(e.target===overlay) cleanup(null); };
+  });
+}
+
 function confirmDelete(entryName) {
   return new Promise(resolve => {
-    const overlay = document.getElementById('delete-overlay');
     const sheet   = document.getElementById('delete-sheet');
     const msg     = document.getElementById('delete-sheet-msg');
     const btnOk   = document.getElementById('delete-sheet-confirm');
@@ -2205,6 +2539,7 @@ function confirmDelete(entryName) {
 // ═══════════════════════════════════════
 function init() {
   applyTheme(Store.get('vault_theme')==='dark');
+  updateBioToggleUI();
   const hasPin=!!Store.get('vault_pin');
   initPINScreen(hasPin?'unlock':'setup');
   showScreen('pin-screen');
