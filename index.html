@@ -1123,7 +1123,7 @@ function unlockSuccess() {
   const lbl=document.getElementById('pin-label');
   lbl.textContent='✓ Unlocked'; lbl.className='pin-label success';
   applyTheme(Store.get('vault_theme')==='dark');
-  setTimeout(()=>{ showScreen('home-screen'); renderEntries(); updateStats(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); },300);
+  setTimeout(()=>{ showScreen('home-screen'); renderEntries(true); updateStats(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); },300);
 }
 
 document.querySelectorAll('.num-btn[data-n]').forEach(b=>b.addEventListener('click',()=>handlePINDigit(b.dataset.n)));
@@ -1200,7 +1200,7 @@ function entrySearchText(e) {
   return parts.filter(Boolean).join(' ').toLowerCase();
 }
 
-function renderEntries() {
+function renderEntries(animate=false) {
   const list=document.getElementById('entries-list');
   const search=document.getElementById('search-input').value.toLowerCase();
   const filter=state.activeFilter;
@@ -1222,7 +1222,7 @@ function renderEntries() {
     return `
     <div class="entry-card-wrap">
       <div class="swipe-delete-bg" data-del="${e.id}"><span>🗑️</span><small>DELETE</small></div>
-      <div class="entry-card type-${e.type}" data-id="${e.id}" style="animation-delay:${i*.04}s">
+      <div class="entry-card type-${e.type}" data-id="${e.id}"${animate ? ` style="animation-delay:${i*.04}s"` : ' style="animation:none"'}>
         <div class="entry-avatar">${tm.emoji}</div>
         <div class="entry-info">
           <div class="entry-name">${esc(e.name)}</div>
