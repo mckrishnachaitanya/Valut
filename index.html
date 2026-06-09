@@ -127,7 +127,8 @@ body::after{
 .pin-dot{
   width:15px;height:15px;border-radius:50%;
   border:2px solid var(--border);background:transparent;
-  transition:all .18s cubic-bezier(.34,1.56,.64,1);
+  transition:background .15s,border-color .15s,transform .15s cubic-bezier(.34,1.56,.64,1),box-shadow .15s;
+  will-change:transform;
 }
 .pin-dot.filled{
   background:var(--accent);border-color:var(--accent);
@@ -142,9 +143,8 @@ body::after{
   background:var(--surface);color:var(--text);font-size:22px;
   font-family:var(--font-head);font-weight:700;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
-  transition:all .12s cubic-bezier(.34,1.56,.64,1);user-select:none;
+  transition:transform .12s cubic-bezier(.34,1.56,.64,1),background .12s;user-select:none;
   box-shadow:var(--shadow-sm);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
 }
 .num-btn:active{transform:scale(.84);background:var(--surface2);box-shadow:0 0 0 3px rgba(91,95,245,.15);}
 .num-btn.del{font-size:18px;background:transparent;border-color:transparent;box-shadow:none;color:var(--muted);}
