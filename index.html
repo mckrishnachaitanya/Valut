@@ -688,17 +688,12 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   display:flex;align-items:center;justify-content:center;
   flex-direction:column;gap:3px;border-radius:var(--radius-sm) var(--radius) var(--radius) var(--radius-sm);
   pointer-events:none;cursor:pointer;
-  opacity:0;
+  z-index:0;
 }
 .swipe-delete-bg.revealed{
   pointer-events:all;
-  opacity:1;
 }
-/* Also show during active swipe drag (card has non-zero margin-right) */
-.entry-card.swiped ~ .swipe-delete-bg,
-.entry-card-wrap:has(.entry-card.swiped) .swipe-delete-bg{
-  opacity:1;
-}
+
 .swipe-delete-bg span{font-size:22px;}
 .swipe-delete-bg small{font-size:10px;font-weight:800;color:#fff;letter-spacing:.5px;}
 .entry-card{
@@ -1221,7 +1216,6 @@ function renderEntries(animate=false) {
     const tm=TYPE_META[e.type]||TYPE_META.app;
     return `
     <div class="entry-card-wrap">
-      <div class="swipe-delete-bg" data-del="${e.id}"><span>🗑️</span><small>DELETE</small></div>
       <div class="entry-card type-${e.type}" data-id="${e.id}"${animate ? ` style="animation-delay:${i*.04}s"` : ' style="animation:none"'}>
         <div class="entry-avatar">${tm.emoji}</div>
         <div class="entry-info">
@@ -1234,6 +1228,7 @@ function renderEntries(animate=false) {
           <span class="entry-arrow">›</span>
         </div>
       </div>
+      <div class="swipe-delete-bg" data-del="${e.id}"><span>🗑️</span><small>DELETE</small></div>
     </div>`;
   }).join('');
 
@@ -1273,8 +1268,7 @@ function renderFavs() {
     const tm=TYPE_META[e.type]||TYPE_META.app;
     return `
     <div class="entry-card-wrap">
-      <div class="swipe-delete-bg" data-del="${e.id}"><span>🗑️</span><small>DELETE</small></div>
-      <div class="entry-card type-${e.type}" data-id="${e.id}" style="animation-delay:${i*.04}s">
+      <div class="entry-card type-${e.type}" data-id="${e.id}" style="animation:none">
         <div class="entry-avatar">${tm.emoji}</div>
         <div class="entry-info">
           <div class="entry-name">${esc(e.name)}</div>
@@ -1286,6 +1280,7 @@ function renderFavs() {
           <span class="entry-arrow">›</span>
         </div>
       </div>
+      <div class="swipe-delete-bg" data-del="${e.id}"><span>🗑️</span><small>DELETE</small></div>
     </div>`;
   }).join('');
   list.querySelectorAll('.entry-card').forEach(c=>c.addEventListener('click',ev=>{ if(ev.target.classList.contains('fav-star')) return; openDetail(c.dataset.id); }));
@@ -1489,7 +1484,7 @@ function addSwipeToDelete(container) {
     card.style.transition = '';
     card.style.marginRight = '';
     card.classList.remove('swiped');
-    setTimeout(() => { delBg.classList.remove('revealed'); delBg.style.opacity = ''; }, 280);
+    setTimeout(() => { delBg.classList.remove('revealed'); }, 280);
   }
 
   function closeAll() {
