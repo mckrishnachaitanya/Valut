@@ -248,6 +248,16 @@ body::after{
 .backup-nudge-btn{padding:6px 13px;border-radius:9px;border:1.5px solid rgba(245,158,11,.4);background:rgba(245,158,11,.15);color:var(--yellow);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;white-space:nowrap;}
 .backup-nudge-dismiss{background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:2px 6px;line-height:1;}
 
+/* Expiry alert nudge */
+.expiry-nudge{
+  margin:0 20px 12px;padding:13px 16px;border-radius:var(--radius-sm);
+  background:rgba(239,68,68,.10);border:1.5px solid rgba(239,68,68,.30);
+  display:flex;align-items:center;gap:10px;
+}
+.expiry-nudge-text{flex:1;font-size:13px;font-weight:600;color:var(--red);}
+.expiry-nudge-text span{display:block;font-size:11px;font-weight:500;color:var(--text2);margin-top:2px;}
+.expiry-nudge-dismiss{background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:2px 6px;line-height:1;}
+
 /* Categories inline panel */
 .cat-inline-panel{
   margin:0 20px;overflow:hidden;
@@ -751,6 +761,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="stat-card tappable" id="stat-cats-card"><div class="stat-num" id="stat-cats">0</div><div class="stat-label">Types Used</div></div>
   </div>
   <div id="backup-nudge-wrap"></div>
+  <div id="expiry-nudge-wrap"></div>
   <div class="cat-inline-panel" id="cat-inline-panel">
     <div class="cat-inline-inner">
       <div class="cat-breakdown-list" id="cat-breakdown-list"></div>
@@ -872,7 +883,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title">Vault v3.3</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title">Vault v4.2</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
   </div>
   <div class="bottom-nav">
@@ -1105,7 +1116,7 @@ function unlockSuccess() {
   const lbl=document.getElementById('pin-label');
   lbl.textContent='✓ Unlocked'; lbl.className='pin-label success';
   applyTheme(Store.get('vault_theme')==='dark');
-  setTimeout(()=>{ showScreen('home-screen'); renderEntries(); updateStats(); resetAutoLock(); checkBackupNudge(); },300);
+  setTimeout(()=>{ showScreen('home-screen'); renderEntries(); updateStats(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); },300);
 }
 
 document.querySelectorAll('.num-btn[data-n]').forEach(b=>b.addEventListener('click',()=>handlePINDigit(b.dataset.n)));
@@ -1167,13 +1178,28 @@ function timeAgo(ts) {
   return new Date(ts).toLocaleDateString();
 }
 
+function entrySearchText(e) {
+  // Collect all searchable text for an entry
+  const parts = [
+    e.name, e.url, e.username, e.password, e.notes,
+    e.ssid, e.securityType,
+    e.note,
+    e.cardHolder, e.cardNumber, e.expiry,
+    e.bankName, e.accountNo, e.ifsc, e.netBankingId,
+    e.docName, e.docNumber, e.idName, e.dob, e.nationality, e.issuingState,
+    DOC_TYPE_LABELS[e.docType],
+  ];
+  (e.customFields||[]).forEach(f=>{ parts.push(f.name, f.value); });
+  return parts.filter(Boolean).join(' ').toLowerCase();
+}
+
 function renderEntries() {
   const list=document.getElementById('entries-list');
   const search=document.getElementById('search-input').value.toLowerCase();
   const filter=state.activeFilter;
   let entries=state.entries.filter(e=>{
     const mt=filter==='all'||e.type===filter;
-    const ms=!search||e.name.toLowerCase().includes(search)||(entrySubtitle(e)||'').toLowerCase().includes(search);
+    const ms=!search||entrySearchText(e).includes(search);
     return mt&&ms;
   });
   // Newest first, favourites always at top
@@ -1706,7 +1732,60 @@ function renderForm() {
     pwField.addEventListener('input',e=>updateStrength(e.target.value));
     if(editEntry && pwField.value) updateStrength(pwField.value);
   }
+  attachDateFormatters();
   renderCustomFields();
+}
+
+// ═══════════════════════════════════════
+//  DATE AUTO-FORMAT
+// ═══════════════════════════════════════
+function applyDateAutoFormat(input, format) {
+  // format: 'mmyy' (card expiry MM/YY) or 'ddmmyyyy' (DOB / expiry on identity docs)
+  if (!input || input._dateFormatted) return;
+  input._dateFormatted = true;
+
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Backspace') {
+      const pos = this.selectionStart;
+      const val = this.value;
+      if (pos > 0 && val[pos-1] === '/') {
+        e.preventDefault();
+        this.value = val.slice(0, pos-2) + val.slice(pos);
+        this.setSelectionRange(pos-2, pos-2);
+      }
+    }
+  });
+
+  input.addEventListener('input', function() {
+    const digits = this.value.replace(/\D/g, '');
+    let formatted = '';
+    if (format === 'mmyy') {
+      // MM/YY — max 4 digits
+      const d = digits.slice(0, 4);
+      if (d.length > 0) formatted += d.slice(0, 2);
+      if (d.length >= 3) formatted += '/' + d.slice(2, 4);
+    } else {
+      // DD/MM/YYYY — max 8 digits
+      const d = digits.slice(0, 8);
+      if (d.length > 0) formatted += d.slice(0, 2);
+      if (d.length >= 3) formatted += '/' + d.slice(2, 4);
+      if (d.length >= 5) formatted += '/' + d.slice(4, 8);
+    }
+    this.value = formatted;
+  });
+}
+
+function attachDateFormatters() {
+  // DOB — always DD/MM/YYYY
+  const dob = document.getElementById('f-dob');
+  if (dob) applyDateAutoFormat(dob, 'ddmmyyyy');
+
+  // Expiry — MM/YY for card, DD/MM/YYYY for identity docs
+  const exp = document.getElementById('f-expiry');
+  if (exp) {
+    const fmt = formState.type === 'card' ? 'mmyy' : 'ddmmyyyy';
+    applyDateAutoFormat(exp, fmt);
+  }
 }
 
 function renderFieldHTML(f, editEntry) {
@@ -1791,9 +1870,10 @@ function collectFormData() {
     case 'note':   return {...base, note:g('f-note')};
     case 'card':   return {...base, cardHolder:g('f-cardholder'), cardNumber:g('f-cardnumber'), expiry:g('f-expiry'), cvv:g('f-cvv'), pin:g('f-pin'), notes:g('f-notes')};
     case 'bank':   return {...base, bankName:g('f-bankname'), accountNo:g('f-accountno'), ifsc:g('f-ifsc'), accountType:g('f-accounttype'), netBankingId:g('f-netbankingid'), netBankingPassword:g('f-netbankingpw'), notes:g('f-notes')};
-    case 'identity':
+    case 'identity': {
       const docType=formState.docType;
       return {...base, docType, docName:g('f-docname'), docNumber:g('f-docnumber'), idName:g('f-idname'), dob:g('f-dob'), expiry:g('f-expiry'), nationality:g('f-nationality'), issuingState:g('f-issuingstate'), notes:g('f-notes')};
+    }
     default: return base;
   }
 }
@@ -1961,7 +2041,79 @@ function doExport() {
   toast('Backup exported ✓');
 }
 
-// Strength
+// ═══════════════════════════════════════
+//  EXPIRY ALERTS
+// ═══════════════════════════════════════
+function parseExpiry(str) {
+  if(!str) return null;
+  // Accepts MM/YY (card), DD/MM/YYYY (passport/DL)
+  str = str.trim();
+  // DD/MM/YYYY
+  let m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m) return new Date(parseInt(m[3]), parseInt(m[2])-1, parseInt(m[1]));
+  // MM/YY (card) — treat as last day of that month
+  m = str.match(/^(\d{1,2})\/(\d{2,4})$/);
+  if(m){
+    const year = m[2].length===2 ? 2000+parseInt(m[2]) : parseInt(m[2]);
+    const month = parseInt(m[1]);
+    return new Date(year, month, 0); // day 0 = last day of prev month = last of `month`
+  }
+  return null;
+}
+
+function checkExpiryAlerts() {
+  const wrap = document.getElementById('expiry-nudge-wrap');
+  wrap.innerHTML = '';
+  const now = Date.now();
+  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+  const expiring = [];
+
+  state.entries.forEach(e => {
+    // Card expiry
+    if(e.type === 'card' && e.expiry) {
+      const d = parseExpiry(e.expiry);
+      if(d && d.getTime() > now && d.getTime() - now <= THIRTY_DAYS)
+        expiring.push({ name: e.name, label: 'Card', expiry: e.expiry });
+      else if(d && d.getTime() <= now)
+        expiring.push({ name: e.name, label: 'Card', expiry: e.expiry, expired: true });
+    }
+    // Passport expiry
+    if(e.type === 'identity' && e.docType === 'passport' && e.expiry) {
+      const d = parseExpiry(e.expiry);
+      if(d && d.getTime() > now && d.getTime() - now <= THIRTY_DAYS)
+        expiring.push({ name: e.name, label: 'Passport', expiry: e.expiry });
+      else if(d && d.getTime() <= now)
+        expiring.push({ name: e.name, label: 'Passport', expiry: e.expiry, expired: true });
+    }
+    // Driving Licence expiry
+    if(e.type === 'identity' && e.docType === 'dl' && e.expiry) {
+      const d = parseExpiry(e.expiry);
+      if(d && d.getTime() > now && d.getTime() - now <= THIRTY_DAYS)
+        expiring.push({ name: e.name, label: 'Driving Licence', expiry: e.expiry });
+      else if(d && d.getTime() <= now)
+        expiring.push({ name: e.name, label: 'Driving Licence', expiry: e.expiry, expired: true });
+    }
+  });
+
+  if(!expiring.length) return;
+
+  expiring.forEach((item, idx) => {
+    const id = `expiry-nudge-${idx}`;
+    const msg = item.expired
+      ? `${item.label} expired`
+      : `${item.label} expiring soon`;
+    const sub = `${item.name} · Expiry: ${item.expiry}`;
+    const div = document.createElement('div');
+    div.className = 'expiry-nudge';
+    div.id = id;
+    div.innerHTML = `
+      <div>⚠️</div>
+      <div class="expiry-nudge-text">${msg}<span>${sub}</span></div>
+      <button class="expiry-nudge-dismiss" onclick="document.getElementById('${id}').remove()">✕</button>`;
+    wrap.appendChild(div);
+  });
+}
+
 function updateStrength(pw) {
   const fill=document.getElementById('strength-fill'), lbl=document.getElementById('strength-label');
   if(!pw){ fill.style.width='0'; lbl.textContent=''; return; }
