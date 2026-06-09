@@ -688,9 +688,16 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   display:flex;align-items:center;justify-content:center;
   flex-direction:column;gap:3px;border-radius:var(--radius-sm) var(--radius) var(--radius) var(--radius-sm);
   pointer-events:none;cursor:pointer;
+  opacity:0;
 }
 .swipe-delete-bg.revealed{
   pointer-events:all;
+  opacity:1;
+}
+/* Also show during active swipe drag (card has non-zero margin-right) */
+.entry-card.swiped ~ .swipe-delete-bg,
+.entry-card-wrap:has(.entry-card.swiped) .swipe-delete-bg{
+  opacity:1;
 }
 .swipe-delete-bg span{font-size:22px;}
 .swipe-delete-bg small{font-size:10px;font-weight:800;color:#fff;letter-spacing:.5px;}
@@ -1482,9 +1489,7 @@ function addSwipeToDelete(container) {
     card.style.transition = '';
     card.style.marginRight = '';
     card.classList.remove('swiped');
-    // Keep revealed (pointer-events:all) until CSS transition finishes
-    // so a tap during close doesn't land on a dead button
-    setTimeout(() => delBg.classList.remove('revealed'), 280);
+    setTimeout(() => { delBg.classList.remove('revealed'); delBg.style.opacity = ''; }, 280);
   }
 
   function closeAll() {
@@ -1505,6 +1510,7 @@ function addSwipeToDelete(container) {
       isHoriz = Math.abs(dx) > Math.abs(dy) * 1.3;
       dirLocked = true;
       if (!isHoriz) { activeCard = null; return; } // vertical — abandon
+      if (activeDelBg) activeDelBg.style.opacity = '1'; // reveal bg as swipe starts
     }
 
     // We own this touch — prevent scroll
