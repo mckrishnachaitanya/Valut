@@ -932,21 +932,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   </div>
 </div>
 
-<!-- ══════════ PIN CHANGE WARNING SHEET ══════════ -->
-<div id="pinchange-overlay" class="delete-overlay">
-  <div class="delete-sheet" id="pinchange-sheet">
-    <div class="delete-sheet-handle"></div>
-    <div class="delete-sheet-icon">⚠️</div>
-    <div class="delete-sheet-title">Back up before changing PIN</div>
-    <div class="delete-sheet-msg">Old backup files will <strong>stop working</strong> after a PIN change — they're encrypted with your current PIN. Export a fresh backup first so you don't lose access.</div>
-    <div class="delete-sheet-actions" style="flex-direction:column;gap:10px">
-      <button class="delete-sheet-confirm" id="pinchange-export" style="background:var(--accent)">📤 Export Now</button>
-      <button class="delete-sheet-cancel" id="pinchange-proceed" style="color:var(--text);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:13px;font-size:15px;font-weight:600;cursor:pointer;background:transparent">Change PIN anyway</button>
-      <button class="delete-sheet-cancel" id="pinchange-cancel">Cancel</button>
-    </div>
-  </div>
-</div>
-
 <!-- ══════════ DELETE CONFIRM DIALOG ══════════ -->
 <div id="delete-overlay" class="delete-overlay">
   <div id="delete-sheet" class="delete-sheet">
@@ -1000,7 +985,7 @@ let state = {
   entries:[], currentPIN:'', unlocked:false, editId:null,
   activeFilter:'all', pinBuffer:'', pinMode:'unlock',
   pinTemp:'', failCount:0, currentNav:'home', detailSource:'home',
-  unlockedViaBio: false,
+  unlockedViaBio: false, stepUpDone: false,
 };
 
 const Store = {
@@ -1064,8 +1049,15 @@ function closeStepUp(success=false) {
   if(stepUpResolve){ stepUpResolve(success); stepUpResolve=null; }
 }
 
-// Returns Promise<bool> — resolves true if PIN verified, false if cancelled
-function requirePIN(title='Enter PIN to continue') {
+// Returns Promise<bool> — resolves true if PIN verified (or already done this session), false if cancelled
+async function requirePIN(title='Enter PIN to continue') {
+  if(state.stepUpDone) return true; // already verified this session
+  const result = await _showStepUpModal(title);
+  if(result) state.stepUpDone = true;
+  return result;
+}
+
+function _showStepUpModal(title) {
   return new Promise(resolve => {
     stepUpResolve = resolve;
     stepUpBuffer = '';
@@ -1140,14 +1132,14 @@ document.getElementById('bio-toggle').addEventListener('click', async () => {
   if(!isBioAvailable()){ toast('Biometrics not supported on this device'); return; }
   if(isBioEnabled()){
     // Turning off — require PIN first
-    const ok = await requirePIN('Enter PIN to disable biometric');
+    const ok = await _showStepUpModal('Enter PIN to disable biometric');
     if(!ok) return;
     Store.set('vault_bio','0');
     updateBioToggleUI();
     toast('Biometric unlock disabled');
   } else {
     // Turning on — require PIN + register fingerprint
-    const ok = await requirePIN('Enter PIN to enable biometric');
+    const ok = await _showStepUpModal('Enter PIN to enable biometric');
     if(!ok) return;
     toast('Scan your fingerprint to register...');
     const registered = await registerBiometric();
@@ -1234,7 +1226,7 @@ function resetAutoLock() {
   autoLockTimer = setTimeout(lockVault, AUTO_LOCK_MS);
 }
 function lockVault() {
-  state.unlocked=false; state.unlockedViaBio=false;
+  state.unlocked=false; state.unlockedViaBio=false; state.stepUpDone=false;
   // Keep currentPIN in memory for biometric re-unlock — cleared only on PIN change
   clearTimeout(autoLockTimer);
   const ov=document.getElementById('lock-overlay');
@@ -1319,7 +1311,7 @@ async function handlePINDigit(d) {
     Store.set('vault_fails',0);
     try{ const enc=Store.get('vault_data'); const raw=enc?await Crypto.decrypt(enc,entered):[]; state.entries=migrateEntries(raw); }
     catch(e){ state.entries=[]; }
-    state.currentPIN=entered; state.unlockedViaBio=false; unlockSuccess();
+    state.currentPIN=entered; state.unlockedViaBio=false; state.stepUpDone=false; unlockSuccess();
   } else if(state.pinMode==='change-old'){
     if(await Crypto.hashPIN(entered)!==Store.get('vault_pin')){ pinError('Wrong PIN'); return; }
     state.pinTemp=entered; initPINScreen('change-new'); showScreen('pin-screen');
@@ -1329,9 +1321,9 @@ async function handlePINDigit(d) {
     if(entered!==state.pinTemp){ pinError('PINs do not match'); return; }
     Store.set('vault_pin', await Crypto.hashPIN(entered));
     state.currentPIN=entered; await saveEntries();
-    // Disable biometric after PIN change — user must re-enable with new PIN
-    if(isBioEnabled()){ Store.set('vault_bio','0'); updateBioToggleUI(); toast('PIN changed ✓ — re-enable biometric in Settings'); }
-    else { toast('PIN changed ✓'); }
+    if(isBioEnabled()){ Store.set('vault_bio','0'); updateBioToggleUI(); }
+    doExport();
+    toast('PIN changed ✓ — backup exported with new PIN');
     showScreen('settings-screen');
   }
 }
@@ -1347,13 +1339,18 @@ function unlockSuccess() {
 
 async function tryBiometricUnlock() {
   const lbl=document.getElementById('pin-label');
+  // If we don't have PIN in memory (fresh app open), bio can't decrypt — fall back to PIN
+  if(!state.currentPIN){
+    lbl.textContent='Enter PIN once to enable biometric'; lbl.className='pin-label';
+    return;
+  }
   lbl.textContent='Touch sensor…'; lbl.className='pin-label';
   const ok = await attemptBiometric();
   if(ok){
     const enc=Store.get('vault_data');
     try{ const raw=enc?await Crypto.decrypt(enc,state.currentPIN):[]; state.entries=migrateEntries(raw); }
     catch(e){ state.entries=[]; }
-    state.unlocked=true; state.unlockedViaBio=true;
+    state.unlocked=true; state.unlockedViaBio=true; state.stepUpDone=false;
     lbl.textContent='✓ Unlocked'; lbl.className='pin-label success';
     applyTheme(Store.get('vault_theme')==='dark');
     document.getElementById('bio-unlock-btn').style.display='none';
@@ -1602,7 +1599,7 @@ async function openDetail(id) {
     sensBtn.onclick = async () => {
       if(isSens){
         // Making it less sensitive — require PIN
-        const ok = await requirePIN('Enter PIN to change sensitivity');
+        const ok = await _showStepUpModal('Enter PIN to change sensitivity');
         if(!ok) return;
         entry.sensitiveOverride = false;
       } else {
@@ -2426,10 +2423,7 @@ document.getElementById('form-back').addEventListener('click',()=>{
 //  SETTINGS
 // ═══════════════════════════════════════
 document.getElementById('s-lock').addEventListener('click', lockVault);
-document.getElementById('s-change-pin').addEventListener('click', async () => {
-  const choice = await showPinChangeWarning();
-  if(choice === null) return; // cancelled
-  if(choice === 'export') { doExport(); return; } // exported — don't proceed to PIN change yet so they can verify
+document.getElementById('s-change-pin').addEventListener('click', () => {
   initPINScreen('change-old'); showScreen('pin-screen');
 });
 
@@ -2470,27 +2464,6 @@ document.getElementById('import-file').addEventListener('change',async e=>{
 
 // ═══════════════════════════════════════
 //  CUSTOM DELETE CONFIRM
-// ═══════════════════════════════════════
-// ═══════════════════════════════════════
-//  PIN CHANGE WARNING
-// ═══════════════════════════════════════
-function showPinChangeWarning() {
-  return new Promise(resolve => {
-    const overlay = document.getElementById('pinchange-overlay');
-    overlay.classList.add('active');
-
-    const cleanup = (val) => {
-      overlay.classList.remove('active');
-      resolve(val);
-    };
-
-    document.getElementById('pinchange-export').onclick   = () => cleanup('export');
-    document.getElementById('pinchange-proceed').onclick  = () => cleanup('proceed');
-    document.getElementById('pinchange-cancel').onclick   = () => cleanup(null);
-    overlay.onclick = (e) => { if(e.target===overlay) cleanup(null); };
-  });
-}
-
 function confirmDelete(entryName) {
   return new Promise(resolve => {
     const sheet   = document.getElementById('delete-sheet');
