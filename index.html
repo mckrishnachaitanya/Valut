@@ -1256,8 +1256,8 @@ function initPINScreen(mode) {
     const bioBtn = document.getElementById('bio-unlock-btn');
     if(isBioEnabled() && isBioAvailable()){
       bioBtn.style.display='block';
-      // Auto-trigger after short delay
-      setTimeout(tryBiometricUnlock, 400);
+      // Auto-trigger only if PIN is already in memory (not a fresh cold open)
+      if(state.currentPIN) setTimeout(tryBiometricUnlock, 400);
     } else {
       bioBtn.style.display='none';
     }
@@ -1329,6 +1329,8 @@ function unlockSuccess() {
   state.unlocked=true;
   const lbl=document.getElementById('pin-label');
   lbl.textContent='✓ Unlocked'; lbl.className='pin-label success';
+  const sub=document.getElementById('pin-subtitle');
+  if(sub) sub.textContent='Your private password vault';
   applyTheme(Store.get('vault_theme')==='dark');
   document.getElementById('bio-unlock-btn').style.display='none';
   setTimeout(()=>{ showScreen('home-screen'); renderEntries(true); updateStats(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); },300);
@@ -1336,9 +1338,11 @@ function unlockSuccess() {
 
 async function tryBiometricUnlock() {
   const lbl=document.getElementById('pin-label');
-  // If we don't have PIN in memory (fresh app open), bio can't decrypt — fall back to PIN
+  // If we don't have PIN in memory (fresh app open), bio can't decrypt yet
+  // Show a hint on the subtitle and leave the main label + button intact
   if(!state.currentPIN){
-    lbl.textContent='Enter PIN once to enable biometric'; lbl.className='pin-label';
+    const sub=document.getElementById('pin-subtitle');
+    if(sub) sub.textContent='Enter PIN once to activate biometric';
     return;
   }
   lbl.textContent='Touch sensor…'; lbl.className='pin-label';
