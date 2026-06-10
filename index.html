@@ -728,6 +728,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 
 <!-- ══════════ PIN SCREEN ══════════ -->
 <div class="screen" id="pin-screen">
+  <button id="pin-back-btn" style="display:none;position:absolute;top:52px;left:20px;background:transparent;border:none;color:var(--accent);font-size:22px;cursor:pointer;width:40px;height:40px;display:none;align-items:center;justify-content:center;border-radius:50%"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
   <div class="vault-brand">
     <div class="brand-icon">🔐</div>
     <div class="brand-name">Vault</div>
@@ -1080,29 +1081,11 @@ document.getElementById('stepup-overlay').addEventListener('click', e=>{ if(e.ta
 function isBioEnabled() { return Store.get('vault_bio')==='1'; }
 function isBioAvailable() { return !!(window.PublicKeyCredential); }
 
-async function attemptBiometric() {
-  try {
-    const challenge = crypto.getRandomValues(new Uint8Array(32));
-    const cred = await navigator.credentials.get({
-      publicKey: {
-        challenge,
-        timeout: 30000,
-        userVerification: 'required',
-        rpId: window.location.hostname,
-        allowCredentials: [],
-      }
-    });
-    return !!cred;
-  } catch(e) {
-    return false;
-  }
-}
-
 async function registerBiometric() {
   try {
     const challenge = crypto.getRandomValues(new Uint8Array(32));
     const userId = crypto.getRandomValues(new Uint8Array(16));
-    await navigator.credentials.create({
+    const cred = await navigator.credentials.create({
       publicKey: {
         challenge,
         rp: { name: 'Vault', id: window.location.hostname },
@@ -1112,7 +1095,32 @@ async function registerBiometric() {
         timeout: 30000,
       }
     });
+    // Store credential ID for use in attemptBiometric
+    const credId = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+    Store.set('vault_bio_cred', credId);
     return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+async function attemptBiometric() {
+  try {
+    const credIdB64 = Store.get('vault_bio_cred');
+    if(!credIdB64) return false;
+    // Decode stored credential ID
+    const credIdBytes = Uint8Array.from(atob(credIdB64), c => c.charCodeAt(0));
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const cred = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        timeout: 30000,
+        userVerification: 'required',
+        rpId: window.location.hostname,
+        allowCredentials: [{ type: 'public-key', id: credIdBytes }],
+      }
+    });
+    return !!cred;
   } catch(e) {
     return false;
   }
@@ -1135,6 +1143,7 @@ document.getElementById('bio-toggle').addEventListener('click', async () => {
     const ok = await _showStepUpModal('Enter PIN to disable biometric');
     if(!ok) return;
     Store.set('vault_bio','0');
+    Store.set('vault_bio_cred','');
     updateBioToggleUI();
     toast('Biometric unlock disabled');
   } else {
@@ -1251,7 +1260,9 @@ function initPINScreen(mode) {
     'unlock':'Enter your PIN'
   };
   lbl.textContent = msgs[mode] || 'Enter your PIN';
-  sub.textContent = mode==='setup' ? 'You will use this to unlock your vault' : 'Your private password vault';
+  const isChanging = mode.startsWith('change');
+  const backBtn = document.getElementById('pin-back-btn');
+  backBtn.style.display = isChanging ? 'flex' : 'none';
   if(mode==='unlock'){
     const lock = parseInt(Store.get('vault_lockout')||'0');
     if(Date.now()<lock){ const s=Math.ceil((lock-Date.now())/1000); lbl.textContent=`Too many attempts. Wait ${s}s`; lbl.classList.add('error'); }
@@ -1321,7 +1332,7 @@ async function handlePINDigit(d) {
     if(entered!==state.pinTemp){ pinError('PINs do not match'); return; }
     Store.set('vault_pin', await Crypto.hashPIN(entered));
     state.currentPIN=entered; await saveEntries();
-    if(isBioEnabled()){ Store.set('vault_bio','0'); updateBioToggleUI(); }
+    if(isBioEnabled()){ Store.set('vault_bio','0'); Store.set('vault_bio_cred',''); updateBioToggleUI(); }
     doExport();
     toast('PIN changed ✓ — backup exported with new PIN');
     showScreen('settings-screen');
@@ -1360,6 +1371,10 @@ async function tryBiometricUnlock() {
   }
 }
 
+document.getElementById('pin-back-btn').addEventListener('click', () => {
+  state.pinBuffer=''; state.pinTemp='';
+  showScreen('settings-screen');
+});
 document.querySelectorAll('.num-btn[data-n]').forEach(b=>b.addEventListener('click',()=>handlePINDigit(b.dataset.n)));
 document.getElementById('del-btn').addEventListener('click',()=>{ state.pinBuffer=state.pinBuffer.slice(0,-1); updatePINDots(); });
 
