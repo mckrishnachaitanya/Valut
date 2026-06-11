@@ -994,6 +994,24 @@ function isEntrySensitive(entry) {
 }
 
 // ═══════════════════════════════════════
+//  NUMBER DISPLAY FORMATTING
+// ═══════════════════════════════════════
+// Storage always holds raw digits — formatting is display-only
+function formatCardNumber(raw) {
+  if(!raw) return raw;
+  const d = String(raw).replace(/\D/g,'');
+  if(d.length === 15) return d.replace(/(\d{4})(\d{6})(\d{5})/, '$1 $2 $3'); // Amex
+  if(d.length === 16) return d.replace(/(\d{4})(\d{4})(\d{4})(\d{4})/, '$1 $2 $3 $4'); // Standard
+  return raw; // unknown length — leave as-is
+}
+function formatAadhaar(raw) {
+  if(!raw) return raw;
+  const d = String(raw).replace(/\D/g,'');
+  if(d.length === 12) return d.replace(/(\d{4})(\d{4})(\d{4})/, '$1 $2 $3');
+  return raw; // not 12 digits — leave as-is
+}
+
+// ═══════════════════════════════════════
 //  STEP-UP PIN
 // ═══════════════════════════════════════
 let stepUpResolve = null;
@@ -1690,7 +1708,7 @@ function getDetailFields(e) {
       break;
     case 'card':
       add('Cardholder Name', e.cardHolder);
-      add('Card Number', e.cardNumber, 'password');
+      add('Card Number', formatCardNumber(e.cardNumber), 'password');
       add('Expiry', e.expiry);
       add('CVV', e.cvv, 'password');
       add('PIN', e.pin, 'password');
@@ -1711,7 +1729,7 @@ function getDetailFields(e) {
         add('Document Number', e.docNumber, 'password');
       } else {
         add('Document Type', DOC_TYPE_LABELS[e.docType]||e.docType);
-        add('Document Number', e.docNumber, 'password');
+        add('Document Number', e.docType==='aadhaar' ? formatAadhaar(e.docNumber) : e.docNumber, 'password');
         add('Full Name', e.idName);
         add('Date of Birth', e.dob);
         if(['passport','dl'].includes(e.docType)) add('Expiry Date', e.expiry);
@@ -2163,11 +2181,11 @@ function collectFormData() {
     case 'app':    return {...base, url:g('f-url'), username:g('f-user'), password:g('f-pass'), notes:g('f-notes')};
     case 'wifi':   return {...base, ssid:g('f-ssid'), password:g('f-pass'), securityType:g('f-sectype'), notes:g('f-notes')};
     case 'note':   return {...base, note:g('f-note')};
-    case 'card':   return {...base, cardHolder:g('f-cardholder'), cardNumber:g('f-cardnumber'), expiry:g('f-expiry'), cvv:g('f-cvv'), pin:g('f-pin'), notes:g('f-notes')};
+    case 'card':   return {...base, cardHolder:g('f-cardholder'), cardNumber:(g('f-cardnumber')||'').replace(/\D/g,''), expiry:g('f-expiry'), cvv:g('f-cvv'), pin:g('f-pin'), notes:g('f-notes')};
     case 'bank':   return {...base, bankName:g('f-bankname'), accountNo:g('f-accountno'), ifsc:g('f-ifsc'), accountType:g('f-accounttype'), netBankingId:g('f-netbankingid'), netBankingPassword:g('f-netbankingpw'), notes:g('f-notes')};
     case 'identity': {
-      const docType=formState.docType;
-      return {...base, docType, docName:g('f-docname'), docNumber:g('f-docnumber'), idName:g('f-idname'), dob:g('f-dob'), expiry:g('f-expiry'), nationality:g('f-nationality'), issuingState:g('f-issuingstate'), notes:g('f-notes')};
+      const docType=formState.docType; const rawDocNumber=docType==='aadhaar'?(g('f-docnumber')||'').replace(/\D/g,''):g('f-docnumber');
+      return {...base, docType, docName:g('f-docname'), docNumber:rawDocNumber, idName:g('f-idname'), dob:g('f-dob'), expiry:g('f-expiry'), nationality:g('f-nationality'), issuingState:g('f-issuingstate'), notes:g('f-notes')};
     }
     default: return base;
   }
