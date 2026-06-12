@@ -1125,15 +1125,8 @@ async function attemptBiometric() {
         allowCredentials: [{ type: 'public-key', id: credIdBytes }],
       }
     });
-    if(!cred){
-      let dbg = document.getElementById('debug-banner');
-      if(dbg) dbg.textContent += `\nBIO: cred was falsy, no error thrown`;
-    }
     return !!cred;
   } catch(e) {
-    // TEMP DEBUG
-    let dbg = document.getElementById('debug-banner');
-    if(dbg) dbg.textContent += `\nBIO ERROR: ${e.name}: ${e.message}`;
     return false;
   }
 }
@@ -1292,21 +1285,11 @@ function initPINScreen(mode) {
     if(Date.now()<lock){ const s=Math.ceil((lock-Date.now())/1000); lbl.textContent=`Too many attempts. Wait ${s}s`; lbl.classList.add('error'); }
     // Show biometric button if enabled and available
     const bioBtn = document.getElementById('bio-unlock-btn');
-    const bioEn = isBioEnabled(), bioAv = isBioAvailable(), hasPIN = !!state.currentPIN;
-    // ── TEMP DEBUG BANNER ──
-    let dbg = document.getElementById('debug-banner');
-    if(!dbg){
-      dbg = document.createElement('div');
-      dbg.id = 'debug-banner';
-      dbg.style.cssText = 'position:fixed;top:6px;left:6px;right:6px;z-index:9999;background:rgba(0,0,0,.85);color:#0f0;font-family:monospace;font-size:11px;padding:8px;border-radius:8px;white-space:pre-wrap;';
-      document.body.appendChild(dbg);
-    }
-    dbg.textContent = `DEBUG\nbioEnabled=${bioEn}\nbioAvailable=${bioAv}\nhasCurrentPIN=${hasPIN}\nunlockedViaBio=${state.unlockedViaBio}\npreLockScreen=${state.preLockScreen}`;
-    // ── END TEMP DEBUG ──
+    const bioEn = isBioEnabled(), bioAv = isBioAvailable();
     if(bioEn && bioAv){
       bioBtn.style.display='block';
       // Auto-trigger only if PIN is already in memory (not a fresh cold open)
-      if(state.currentPIN) setTimeout(tryBiometricUnlock, 400);
+      if(state.currentPIN) waitForFocusThenBio();
     } else {
       bioBtn.style.display='none';
     }
@@ -1383,6 +1366,19 @@ function unlockSuccess() {
   applyTheme(Store.get('vault_theme')==='dark');
   document.getElementById('bio-unlock-btn').style.display='none';
   setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); },300);
+}
+
+// WebAuthn requires document focus — visibilitychange can fire slightly
+// before focus is restored, so wait for focus before auto-triggering bio
+function waitForFocusThenBio() {
+  if(document.hasFocus()){ setTimeout(tryBiometricUnlock, 150); return; }
+  const onFocus = () => {
+    window.removeEventListener('focus', onFocus);
+    setTimeout(tryBiometricUnlock, 150);
+  };
+  window.addEventListener('focus', onFocus);
+  // Fallback in case focus event never fires
+  setTimeout(()=>{ window.removeEventListener('focus', onFocus); if(!state.unlocked) tryBiometricUnlock(); }, 1500);
 }
 
 async function tryBiometricUnlock() {
