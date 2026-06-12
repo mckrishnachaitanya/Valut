@@ -1112,7 +1112,6 @@ async function registerBiometric() {
 async function attemptBiometric() {
   try {
     const credIdB64 = Store.get('vault_bio_cred');
-    showDbg(`attemptBiometric: hasCredId=${!!credIdB64} hasFocus=${document.hasFocus()}`);
     if(!credIdB64) return false;
     // Decode stored credential ID
     const credIdBytes = Uint8Array.from(atob(credIdB64), c => c.charCodeAt(0));
@@ -1126,10 +1125,8 @@ async function attemptBiometric() {
         allowCredentials: [{ type: 'public-key', id: credIdBytes }],
       }
     });
-    showDbg(`attemptBiometric: cred result = ${!!cred}`);
     return !!cred;
   } catch(e) {
-    showDbg(`attemptBiometric ERROR: ${e.name}: ${e.message}`);
     return false;
   }
 }
@@ -1243,8 +1240,6 @@ function resetAutoLock() {
   autoLockTimer = setTimeout(lockVault, AUTO_LOCK_MS);
 }
 function lockVault() {
-  { const d=document.getElementById('debug-banner'); if(d) d.textContent=''; }
-  if(typeof showDbg==='function') showDbg(`[${Date.now()%100000}] lockVault called. docHidden=${document.hidden}`);
   state.bioPending = false;
   // Capture which screen we were on, so we can restore it after re-auth
   const visibleScreen = SCREENS.find(s => !document.getElementById(s).classList.contains('hidden'));
@@ -1274,7 +1269,6 @@ document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state.
 //  PIN SCREEN
 // ═══════════════════════════════════════
 function initPINScreen(mode) {
-  if(typeof showDbg==='function') showDbg(`[${Date.now()%100000}] initPINScreen called with mode=${mode}, prev unlocked=${state.unlocked}`);
   state.pinMode=mode; state.pinBuffer=''; updatePINDots();
   const lbl=document.getElementById('pin-label'), sub=document.getElementById('pin-subtitle');
   lbl.className='pin-label';
@@ -1293,7 +1287,6 @@ function initPINScreen(mode) {
     // Show biometric button if enabled and available
     const bioBtn = document.getElementById('bio-unlock-btn');
     const bioEn = isBioEnabled(), bioAv = isBioAvailable();
-    showDbg(`[${Date.now()%100000}] initPINScreen(unlock). bioEn=${bioEn} bioAv=${bioAv} hasPIN=${!!state.currentPIN} docHasFocus=${document.hasFocus()} docHidden=${document.hidden}`);
     if(bioEn && bioAv){
       bioBtn.style.display='block';
       // Auto-trigger only if PIN is already in memory (not a fresh cold open)
@@ -1382,27 +1375,17 @@ function unlockSuccess() {
 }
 
 // WebAuthn requires document focus — visibilitychange can fire slightly
-// before focus is restored, so wait for focus before auto-triggering bio
-function showDbg(msg){
-  let dbg = document.getElementById('debug-banner');
-  if(!dbg){
-    dbg = document.createElement('div');
-    dbg.id = 'debug-banner';
-    dbg.style.cssText = 'position:fixed;top:6px;left:6px;right:6px;z-index:9999;background:rgba(0,0,0,.85);color:#0f0;font-family:monospace;font-size:10px;padding:8px;border-radius:8px;white-space:pre-wrap;max-height:85vh;overflow:auto;';
-    document.body.appendChild(dbg);
-  }
-  dbg.textContent = msg + '\n' + dbg.textContent;
-}
-// Fires bio attempt only when called while page is actually visible+focused
+// before focus is restored. triggerPendingBio is called from
+// visibilitychange/focus listeners and only fires when the page is
+// actually visible+focused at that moment.
 function triggerPendingBio() {
   if(!state.bioPending) return;
   if(state.unlocked) { state.bioPending=false; return; }
   if(document.hidden || !document.hasFocus()) return;
   state.bioPending = false;
-  showDbg(`triggerPendingBio firing. hidden=${document.hidden} hasFocus=${document.hasFocus()}`);
   setTimeout(()=>{
     if(state.unlocked) return;
-    if(document.hidden || !document.hasFocus()){ showDbg('-> aborted, lost focus before timeout'); return; }
+    if(document.hidden || !document.hasFocus()) return;
     tryBiometricUnlock();
   }, 150);
 }
@@ -1437,12 +1420,20 @@ async function tryBiometricUnlock() {
 // ═══════════════════════════════════════
 //  RESTORE SCREEN AFTER RE-AUTH
 // ═══════════════════════════════════════
-function restoreAfterUnlock() {
+async function restoreAfterUnlock() {
   const target = state.preLockScreen;
   state.preLockScreen = null;
 
   if(target==='form-screen' && state.formDraft){
     const draft = state.formDraft; state.formDraft = null;
+    if(state.unlockedViaBio){
+      const ok = await requirePIN('Enter PIN to continue editing');
+      if(!ok){
+        // User declined step-up — discard draft, go home
+        showScreen('home-screen'); renderEntries(true); updateStats();
+        return;
+      }
+    }
     state.editId = draft.editId;
     formState = {...draft.formState};
     customFieldsData = draft.customFieldsData.map(cf=>({...cf}));
