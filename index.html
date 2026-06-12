@@ -1285,7 +1285,18 @@ function initPINScreen(mode) {
     if(Date.now()<lock){ const s=Math.ceil((lock-Date.now())/1000); lbl.textContent=`Too many attempts. Wait ${s}s`; lbl.classList.add('error'); }
     // Show biometric button if enabled and available
     const bioBtn = document.getElementById('bio-unlock-btn');
-    if(isBioEnabled() && isBioAvailable()){
+    const bioEn = isBioEnabled(), bioAv = isBioAvailable(), hasPIN = !!state.currentPIN;
+    // ── TEMP DEBUG BANNER ──
+    let dbg = document.getElementById('debug-banner');
+    if(!dbg){
+      dbg = document.createElement('div');
+      dbg.id = 'debug-banner';
+      dbg.style.cssText = 'position:fixed;top:6px;left:6px;right:6px;z-index:9999;background:rgba(0,0,0,.85);color:#0f0;font-family:monospace;font-size:11px;padding:8px;border-radius:8px;white-space:pre-wrap;';
+      document.body.appendChild(dbg);
+    }
+    dbg.textContent = `DEBUG\nbioEnabled=${bioEn}\nbioAvailable=${bioAv}\nhasCurrentPIN=${hasPIN}\nunlockedViaBio=${state.unlockedViaBio}\npreLockScreen=${state.preLockScreen}`;
+    // ── END TEMP DEBUG ──
+    if(bioEn && bioAv){
       bioBtn.style.display='block';
       // Auto-trigger only if PIN is already in memory (not a fresh cold open)
       if(state.currentPIN) setTimeout(tryBiometricUnlock, 400);
