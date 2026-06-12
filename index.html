@@ -973,7 +973,7 @@ let state = {
   activeFilter:'all', pinBuffer:'', pinMode:'unlock',
   pinTemp:'', failCount:0, currentNav:'home', detailSource:'home',
   unlockedViaBio: false, stepUpDone: false,
-  preLockScreen: null, formDraft: null, bioGen: 0,
+  preLockScreen: null, formDraft: null, bioGen: 0, bioPending: false,
 };
 
 const Store = {
@@ -1245,6 +1245,7 @@ function resetAutoLock() {
 function lockVault() {
   { const d=document.getElementById('debug-banner'); if(d) d.textContent=''; }
   if(typeof showDbg==='function') showDbg(`[${Date.now()%100000}] lockVault called. docHidden=${document.hidden}`);
+  state.bioPending = false;
   // Capture which screen we were on, so we can restore it after re-auth
   const visibleScreen = SCREENS.find(s => !document.getElementById(s).classList.contains('hidden'));
   if(visibleScreen==='form-screen'){
@@ -1296,7 +1297,12 @@ function initPINScreen(mode) {
     if(bioEn && bioAv){
       bioBtn.style.display='block';
       // Auto-trigger only if PIN is already in memory (not a fresh cold open)
-      if(state.currentPIN){ state.bioGen++; waitForFocusThenBio(state.bioGen); }
+      if(state.currentPIN){
+        state.bioGen++;
+        state.bioPending = true;
+        // If already visible & focused right now, fire immediately
+        if(!document.hidden && document.hasFocus()) triggerPendingBio();
+      }
     } else {
       bioBtn.style.display='none';
     }
@@ -1387,19 +1393,22 @@ function showDbg(msg){
   }
   dbg.textContent = msg + '\n' + dbg.textContent;
 }
-function waitForFocusThenBio(gen) {
-  showDbg(`waitForFocusThenBio called (gen=${gen}). hasFocus=${document.hasFocus()}`);
-  const stale = () => state.unlocked || gen !== state.bioGen;
-  if(document.hasFocus()){ showDbg('-> immediate path'); setTimeout(()=>{ if(!stale()) tryBiometricUnlock(); else showDbg('-> skipped (stale)'); }, 150); return; }
-  const onFocus = () => {
-    window.removeEventListener('focus', onFocus);
-    showDbg('-> focus event fired');
-    setTimeout(()=>{ if(!stale()) tryBiometricUnlock(); else showDbg('-> skipped (stale)'); }, 150);
-  };
-  window.addEventListener('focus', onFocus);
-  // Fallback in case focus event never fires
-  setTimeout(()=>{ window.removeEventListener('focus', onFocus); if(!stale()){ showDbg('-> fallback path (no focus event)'); tryBiometricUnlock(); } else showDbg('-> fallback skipped (stale)'); }, 1500);
+// Fires bio attempt only when called while page is actually visible+focused
+function triggerPendingBio() {
+  if(!state.bioPending) return;
+  if(state.unlocked) { state.bioPending=false; return; }
+  if(document.hidden || !document.hasFocus()) return;
+  state.bioPending = false;
+  showDbg(`triggerPendingBio firing. hidden=${document.hidden} hasFocus=${document.hasFocus()}`);
+  setTimeout(()=>{
+    if(state.unlocked) return;
+    if(document.hidden || !document.hasFocus()){ showDbg('-> aborted, lost focus before timeout'); return; }
+    tryBiometricUnlock();
+  }, 150);
 }
+// Re-check whenever visibility or focus changes
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) triggerPendingBio(); });
+window.addEventListener('focus', triggerPendingBio);
 
 async function tryBiometricUnlock() {
   const lbl=document.getElementById('pin-label');
