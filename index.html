@@ -973,7 +973,7 @@ let state = {
   activeFilter:'all', pinBuffer:'', pinMode:'unlock',
   pinTemp:'', failCount:0, currentNav:'home', detailSource:'home',
   unlockedViaBio: false, stepUpDone: false,
-  preLockScreen: null, formDraft: null,
+  preLockScreen: null, formDraft: null, bioGen: 0,
 };
 
 const Store = {
@@ -1296,7 +1296,7 @@ function initPINScreen(mode) {
     if(bioEn && bioAv){
       bioBtn.style.display='block';
       // Auto-trigger only if PIN is already in memory (not a fresh cold open)
-      if(state.currentPIN) waitForFocusThenBio();
+      if(state.currentPIN){ state.bioGen++; waitForFocusThenBio(state.bioGen); }
     } else {
       bioBtn.style.display='none';
     }
@@ -1382,22 +1382,23 @@ function showDbg(msg){
   if(!dbg){
     dbg = document.createElement('div');
     dbg.id = 'debug-banner';
-    dbg.style.cssText = 'position:fixed;top:6px;left:6px;right:6px;z-index:9999;background:rgba(0,0,0,.85);color:#0f0;font-family:monospace;font-size:11px;padding:8px;border-radius:8px;white-space:pre-wrap;max-height:40vh;overflow:auto;';
+    dbg.style.cssText = 'position:fixed;top:6px;left:6px;right:6px;z-index:9999;background:rgba(0,0,0,.85);color:#0f0;font-family:monospace;font-size:10px;padding:8px;border-radius:8px;white-space:pre-wrap;max-height:85vh;overflow:auto;';
     document.body.appendChild(dbg);
   }
-  dbg.textContent += msg + '\n';
+  dbg.textContent = msg + '\n' + dbg.textContent;
 }
-function waitForFocusThenBio() {
-  showDbg(`waitForFocusThenBio called. hasFocus=${document.hasFocus()}`);
-  if(document.hasFocus()){ showDbg('-> immediate path'); setTimeout(tryBiometricUnlock, 150); return; }
+function waitForFocusThenBio(gen) {
+  showDbg(`waitForFocusThenBio called (gen=${gen}). hasFocus=${document.hasFocus()}`);
+  const stale = () => state.unlocked || gen !== state.bioGen;
+  if(document.hasFocus()){ showDbg('-> immediate path'); setTimeout(()=>{ if(!stale()) tryBiometricUnlock(); else showDbg('-> skipped (stale)'); }, 150); return; }
   const onFocus = () => {
     window.removeEventListener('focus', onFocus);
     showDbg('-> focus event fired');
-    setTimeout(tryBiometricUnlock, 150);
+    setTimeout(()=>{ if(!stale()) tryBiometricUnlock(); else showDbg('-> skipped (stale)'); }, 150);
   };
   window.addEventListener('focus', onFocus);
   // Fallback in case focus event never fires
-  setTimeout(()=>{ window.removeEventListener('focus', onFocus); if(!state.unlocked){ showDbg('-> fallback path (no focus event)'); tryBiometricUnlock(); } }, 1500);
+  setTimeout(()=>{ window.removeEventListener('focus', onFocus); if(!stale()){ showDbg('-> fallback path (no focus event)'); tryBiometricUnlock(); } else showDbg('-> fallback skipped (stale)'); }, 1500);
 }
 
 async function tryBiometricUnlock() {
@@ -1420,7 +1421,7 @@ async function tryBiometricUnlock() {
     document.getElementById('bio-unlock-btn').style.display='none';
     setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); },300);
   } else {
-    lbl.textContent='Use PIN instead'; lbl.className='pin-label';
+    if(!state.unlocked){ lbl.textContent='Use PIN instead'; lbl.className='pin-label'; }
   }
 }
 
