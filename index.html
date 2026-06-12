@@ -1125,8 +1125,15 @@ async function attemptBiometric() {
         allowCredentials: [{ type: 'public-key', id: credIdBytes }],
       }
     });
+    if(!cred){
+      let dbg = document.getElementById('debug-banner');
+      if(dbg) dbg.textContent += `\nBIO: cred was falsy, no error thrown`;
+    }
     return !!cred;
   } catch(e) {
+    // TEMP DEBUG
+    let dbg = document.getElementById('debug-banner');
+    if(dbg) dbg.textContent += `\nBIO ERROR: ${e.name}: ${e.message}`;
     return false;
   }
 }
