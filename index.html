@@ -973,6 +973,7 @@ let state = {
   activeFilter:'all', pinBuffer:'', pinMode:'unlock',
   pinTemp:'', failCount:0, currentNav:'home', detailSource:'home',
   unlockedViaBio: false, stepUpDone: false,
+  preLockScreen: null, formDraft: null,
 };
 
 const Store = {
@@ -1239,6 +1240,18 @@ function resetAutoLock() {
   autoLockTimer = setTimeout(lockVault, AUTO_LOCK_MS);
 }
 function lockVault() {
+  // Capture which screen we were on, so we can restore it after re-auth
+  const visibleScreen = SCREENS.find(s => !document.getElementById(s).classList.contains('hidden'));
+  if(visibleScreen==='form-screen'){
+    state.preLockScreen='form-screen';
+    state.formDraft=captureFormDraft();
+  } else if(visibleScreen==='detail-screen' && currentDetail){
+    state.preLockScreen='detail-screen';
+  } else if(visibleScreen==='fav-screen' || visibleScreen==='settings-screen'){
+    state.preLockScreen=visibleScreen;
+  } else {
+    state.preLockScreen=null; state.formDraft=null;
+  }
   state.unlocked=false; state.unlockedViaBio=false; state.stepUpDone=false;
   // Keep currentPIN in memory for biometric re-unlock — cleared only on PIN change
   clearTimeout(autoLockTimer);
@@ -1326,7 +1339,7 @@ async function handlePINDigit(d) {
     Store.set('vault_fails',0);
     try{ const enc=Store.get('vault_data'); const raw=enc?await Crypto.decrypt(enc,entered):[]; state.entries=migrateEntries(raw); }
     catch(e){ state.entries=[]; }
-    state.currentPIN=entered; state.unlockedViaBio=false; state.stepUpDone=false; unlockSuccess();
+    state.currentPIN=entered; state.unlockedViaBio=false; state.stepUpDone=true; unlockSuccess();
   } else if(state.pinMode==='change-old'){
     if(await Crypto.hashPIN(entered)!==Store.get('vault_pin')){ pinError('Wrong PIN'); return; }
     state.pinTemp=entered; initPINScreen('change-new'); showScreen('pin-screen');
@@ -1351,12 +1364,11 @@ function unlockSuccess() {
   if(sub) sub.textContent='Your private password vault';
   applyTheme(Store.get('vault_theme')==='dark');
   document.getElementById('bio-unlock-btn').style.display='none';
-  setTimeout(()=>{ showScreen('home-screen'); renderEntries(true); updateStats(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); },300);
+  setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); },300);
 }
 
 async function tryBiometricUnlock() {
   const lbl=document.getElementById('pin-label');
-  // If we don't have PIN in memory (fresh app open), bio can't decrypt yet
   // Show a hint on the subtitle and leave the main label + button intact
   if(!state.currentPIN){
     const sub=document.getElementById('pin-subtitle');
@@ -1373,10 +1385,75 @@ async function tryBiometricUnlock() {
     lbl.textContent='✓ Unlocked'; lbl.className='pin-label success';
     applyTheme(Store.get('vault_theme')==='dark');
     document.getElementById('bio-unlock-btn').style.display='none';
-    setTimeout(()=>{ showScreen('home-screen'); renderEntries(true); updateStats(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); },300);
+    setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); },300);
   } else {
     lbl.textContent='Use PIN instead'; lbl.className='pin-label';
   }
+}
+
+// ═══════════════════════════════════════
+//  RESTORE SCREEN AFTER RE-AUTH
+// ═══════════════════════════════════════
+function restoreAfterUnlock() {
+  const target = state.preLockScreen;
+  state.preLockScreen = null;
+
+  if(target==='form-screen' && state.formDraft){
+    const draft = state.formDraft; state.formDraft = null;
+    state.editId = draft.editId;
+    formState = {...draft.formState};
+    customFieldsData = draft.customFieldsData.map(cf=>({...cf}));
+    document.getElementById('form-title').textContent = state.editId ? 'Edit Entry' : 'Add Entry';
+    renderForm();
+    restoreFormDraft(draft);
+    showScreen('form-screen');
+    return;
+  }
+
+  if(target==='detail-screen' && currentDetail){
+    const id = currentDetail.id;
+    showScreen('home-screen'); renderEntries(true); updateStats();
+    openDetail(id);
+    return;
+  }
+
+  if(target==='fav-screen'){
+    showScreen('fav-screen'); renderFavs();
+    return;
+  }
+
+  if(target==='settings-screen'){
+    showScreen('settings-screen');
+    return;
+  }
+
+  // Default — home
+  showScreen('home-screen'); renderEntries(true); updateStats();
+}
+
+// Capture all current form field values + form meta into a draft object
+function captureFormDraft() {
+  const draft = {
+    editId: state.editId,
+    formState: {...formState},
+    customFieldsData: customFieldsData.map(cf=>({...cf})),
+    fields: {},
+  };
+  document.querySelectorAll('#form-body .field-input').forEach(el=>{
+    if(el.id) draft.fields[el.id] = el.value;
+  });
+  return draft;
+}
+
+// Re-populate field values into a freshly-rendered form
+function restoreFormDraft(draft) {
+  Object.entries(draft.fields).forEach(([id,val])=>{
+    const el=document.getElementById(id);
+    if(el) el.value = val;
+  });
+  // Recompute password strength bar if applicable
+  const pwField=document.getElementById('f-pass')||document.getElementById('f-netbankingpw');
+  if(pwField && pwField.value) updateStrength(pwField.value);
 }
 
 document.getElementById('pin-back-btn').addEventListener('click', () => {
