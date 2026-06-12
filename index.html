@@ -1112,6 +1112,7 @@ async function registerBiometric() {
 async function attemptBiometric() {
   try {
     const credIdB64 = Store.get('vault_bio_cred');
+    showDbg(`attemptBiometric: hasCredId=${!!credIdB64} hasFocus=${document.hasFocus()}`);
     if(!credIdB64) return false;
     // Decode stored credential ID
     const credIdBytes = Uint8Array.from(atob(credIdB64), c => c.charCodeAt(0));
@@ -1125,8 +1126,10 @@ async function attemptBiometric() {
         allowCredentials: [{ type: 'public-key', id: credIdBytes }],
       }
     });
+    showDbg(`attemptBiometric: cred result = ${!!cred}`);
     return !!cred;
   } catch(e) {
+    showDbg(`attemptBiometric ERROR: ${e.name}: ${e.message}`);
     return false;
   }
 }
@@ -1286,6 +1289,7 @@ function initPINScreen(mode) {
     // Show biometric button if enabled and available
     const bioBtn = document.getElementById('bio-unlock-btn');
     const bioEn = isBioEnabled(), bioAv = isBioAvailable();
+    showDbg(`initPINScreen(unlock). bioEn=${bioEn} bioAv=${bioAv} hasPIN=${!!state.currentPIN} docHasFocus=${document.hasFocus()}`);
     if(bioEn && bioAv){
       bioBtn.style.display='block';
       // Auto-trigger only if PIN is already in memory (not a fresh cold open)
@@ -1370,15 +1374,27 @@ function unlockSuccess() {
 
 // WebAuthn requires document focus — visibilitychange can fire slightly
 // before focus is restored, so wait for focus before auto-triggering bio
+function showDbg(msg){
+  let dbg = document.getElementById('debug-banner');
+  if(!dbg){
+    dbg = document.createElement('div');
+    dbg.id = 'debug-banner';
+    dbg.style.cssText = 'position:fixed;top:6px;left:6px;right:6px;z-index:9999;background:rgba(0,0,0,.85);color:#0f0;font-family:monospace;font-size:11px;padding:8px;border-radius:8px;white-space:pre-wrap;max-height:40vh;overflow:auto;';
+    document.body.appendChild(dbg);
+  }
+  dbg.textContent += msg + '\n';
+}
 function waitForFocusThenBio() {
-  if(document.hasFocus()){ setTimeout(tryBiometricUnlock, 150); return; }
+  showDbg(`waitForFocusThenBio called. hasFocus=${document.hasFocus()}`);
+  if(document.hasFocus()){ showDbg('-> immediate path'); setTimeout(tryBiometricUnlock, 150); return; }
   const onFocus = () => {
     window.removeEventListener('focus', onFocus);
+    showDbg('-> focus event fired');
     setTimeout(tryBiometricUnlock, 150);
   };
   window.addEventListener('focus', onFocus);
   // Fallback in case focus event never fires
-  setTimeout(()=>{ window.removeEventListener('focus', onFocus); if(!state.unlocked) tryBiometricUnlock(); }, 1500);
+  setTimeout(()=>{ window.removeEventListener('focus', onFocus); if(!state.unlocked){ showDbg('-> fallback path (no focus event)'); tryBiometricUnlock(); } }, 1500);
 }
 
 async function tryBiometricUnlock() {
