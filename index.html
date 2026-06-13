@@ -683,9 +683,12 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   flex-direction:column;gap:3px;border-radius:var(--radius-sm) var(--radius) var(--radius) var(--radius-sm);
   pointer-events:none;cursor:pointer;
   z-index:0;
+  opacity:0;
 }
 .swipe-delete-bg.revealed{
   pointer-events:all;
+  opacity:1;
+  transition:opacity .25s;
 }
 
 .swipe-delete-bg span{font-size:22px;}
@@ -1927,7 +1930,7 @@ function addSwipeToDelete(container) {
     card.style.transition = '';
     card.style.marginRight = '';
     card.classList.remove('swiped');
-    setTimeout(() => { delBg.classList.remove('revealed'); }, 280);
+    setTimeout(() => { delBg.classList.remove('revealed'); delBg.style.opacity = ''; }, 280);
   }
 
   function closeAll() {
