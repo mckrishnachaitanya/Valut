@@ -2715,17 +2715,24 @@ const CloudSync = {
     Store.set('vault_cloud_uid', state.cloudUser.uid);
     Store.set('vault_cloud_email', state.cloudUser.email||'');
 
-    // Initial reconcile — whichever blob is newer wins
+    // Initial reconcile — whichever blob is newer wins, EXCEPT: an empty
+    // local vault (e.g. a freshly-set-up device with no entries yet) must
+    // never overwrite a non-empty remote blob just because its PIN-setup
+    // timestamp happens to be newer. Empty-local + non-empty-remote always
+    // pulls down, regardless of timestamps.
     this.setStatus('syncing');
     try{
       const ref = this.docRef();
       const snap = await this.fsMod.getDoc(ref);
       const localUpdated = parseInt(Store.get('vault_local_updated')||'0');
+      const localEmpty = !state.entries || state.entries.length === 0;
       if(snap.exists()){
         const remote = snap.data();
         const remoteUpdated = remote.updated || 0;
-        if(remoteUpdated > localUpdated){
-          // Cloud is newer — pull it down
+        const remoteEmpty = await this._isRemoteEmpty(remote);
+        const shouldPull = remoteUpdated > localUpdated || (localEmpty && !remoteEmpty);
+        if(shouldPull && !(remoteEmpty && !localEmpty)){
+          // Cloud is newer (or local is empty but cloud isn't) — pull it down
           if(!state.currentPIN){ toast('Unlock vault to complete sync'); }
           else {
             const entries = migrateEntries(await Crypto.decrypt(remote.data, state.currentPIN));
@@ -2736,7 +2743,7 @@ const CloudSync = {
             toast('Synced from cloud ✓');
           }
         } else {
-          // Local is newer or equal — push up
+          // Local is newer/equal, or local has data and remote doesn't — push up
           await this.uploadBlob();
         }
       } else {
@@ -2792,6 +2799,20 @@ const CloudSync = {
     return this.fsMod.doc(this.db, 'users', uid, 'vault', 'data');
   },
 
+  // Returns true if the remote blob decrypts to an empty entries array.
+  // If we can't decrypt (no PIN in memory yet), assume non-empty to be
+  // safe — we'd rather prompt "unlock to complete sync" than risk
+  // overwriting real cloud data with a fresh empty local vault.
+  async _isRemoteEmpty(remote){
+    if(!state.currentPIN) return false;
+    try{
+      const entries = await Crypto.decrypt(remote.data, state.currentPIN);
+      return !entries || entries.length === 0;
+    } catch(e){
+      return false;
+    }
+  },
+
   async uploadBlob(){
     const enc = Store.get('vault_data');
     if(!enc) return;
@@ -2838,6 +2859,13 @@ const CloudSync = {
       if((remote.updated||0) > localUpdated){
         try{
           const entries = migrateEntries(await Crypto.decrypt(remote.data, state.currentPIN));
+          // Safety: don't let an empty remote blob silently wipe a
+          // non-empty local vault (e.g. another device that hasn't
+          // synced its real data yet, or pushed an empty vault by mistake).
+          if((!entries || entries.length===0) && state.entries.length>0){
+            console.warn('Ignoring empty remote update — local vault has entries');
+            return;
+          }
           state.entries = entries;
           Store.set('vault_data', await Crypto.encrypt(state.entries, state.currentPIN));
           Store.set('vault_local_updated', remote.updated.toString());
@@ -3072,13 +3100,17 @@ async function checkCloudOnUnlock(){
     if(snap.exists() && (snap.data().updated||0) > localUpdated){
       const remote = snap.data();
       const entries = migrateEntries(await Crypto.decrypt(remote.data, state.currentPIN));
-      state.entries = entries;
-      Store.set('vault_data', await Crypto.encrypt(state.entries, state.currentPIN));
-      Store.set('vault_local_updated', remote.updated.toString());
-      if(state.currentNav==='home') renderEntries(true);
-      else if(state.currentNav==='fav') renderFavs();
-      updateStats();
-      toast('Synced from cloud ☁️');
+      if((!entries || entries.length===0) && state.entries.length>0){
+        console.warn('Ignoring empty remote update on unlock — local vault has entries');
+      } else {
+        state.entries = entries;
+        Store.set('vault_data', await Crypto.encrypt(state.entries, state.currentPIN));
+        Store.set('vault_local_updated', remote.updated.toString());
+        if(state.currentNav==='home') renderEntries(true);
+        else if(state.currentNav==='fav') renderFavs();
+        updateStats();
+        toast('Synced from cloud ☁️');
+      }
     }
     Store.set('vault_last_sync', Date.now().toString());
     CloudSync.setStatus('synced');
