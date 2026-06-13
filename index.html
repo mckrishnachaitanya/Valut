@@ -3056,6 +3056,7 @@ document.getElementById('s-cloud-delete').addEventListener('click', async ()=>{
 //  CUSTOM DELETE CONFIRM
 function confirmDelete(entryName) {
   return new Promise(resolve => {
+    const overlay = document.getElementById('delete-overlay');
     const sheet   = document.getElementById('delete-sheet');
     const msg     = document.getElementById('delete-sheet-msg');
     const btnOk   = document.getElementById('delete-sheet-confirm');
