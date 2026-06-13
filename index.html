@@ -740,7 +740,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <div class="screen hidden" id="home-screen">
   <div class="home-header">
     <div class="home-greeting">Welcome back 👋</div>
-    <div class="home-title">My Vault</div>
+    <div class="home-title">My Vault <span id="home-cloud-icon" style="font-size:16px;vertical-align:middle;display:none"></span></div>
   </div>
   <div class="stats-row">
     <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total Entries</div></div>
@@ -875,10 +875,26 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     </div>
     <input type="file" id="import-file" accept=".vault,.json" style="display:none"/>
 
+    <div class="settings-section-label">Cloud Sync</div>
+    <div class="settings-item" id="s-cloudsync" style="cursor:default">
+      <span class="s-icon">☁️</span>
+      <div class="s-info"><div class="s-title">Cloud Sync</div><div class="s-desc" id="cloud-desc">Sign in with Google to sync across devices</div></div>
+      <button class="theme-toggle" id="cloud-toggle"></button>
+    </div>
+    <div class="settings-item hidden" id="s-cloud-status" style="cursor:default">
+      <span class="s-icon">📡</span>
+      <div class="s-info"><div class="s-title" id="cloud-account">—</div><div class="s-desc" id="cloud-status-line">—</div></div>
+    </div>
+    <div class="settings-item hidden" id="s-cloud-delete">
+      <span class="s-icon">⚠️</span>
+      <div class="s-info"><div class="s-title" style="color:var(--red)">Delete Cloud Data &amp; Sign Out</div><div class="s-desc">Remove your backup from the cloud on this device</div></div>
+      <span class="s-arrow">›</span>
+    </div>
+
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title">Vault v4.2</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title">Vault v4.3</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
   </div>
   <div class="bottom-nav">
@@ -974,6 +990,7 @@ let state = {
   pinTemp:'', failCount:0, currentNav:'home', detailSource:'home',
   unlockedViaBio: false, stepUpDone: false,
   preLockScreen: null, formDraft: null, bioGen: 0, bioPending: false,
+  cloudUser: null, cloudSyncOn: false, syncStatus: 'idle', // idle|syncing|synced|failed|offline
 };
 
 const Store = {
@@ -1371,7 +1388,7 @@ function unlockSuccess() {
   if(sub) sub.textContent='Your private password vault';
   applyTheme(Store.get('vault_theme')==='dark');
   document.getElementById('bio-unlock-btn').style.display='none';
-  setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); },300);
+  setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); checkCloudOnUnlock(); },300);
 }
 
 // WebAuthn requires document focus — visibilitychange can fire slightly
@@ -1411,7 +1428,7 @@ async function tryBiometricUnlock() {
     lbl.textContent='✓ Unlocked'; lbl.className='pin-label success';
     applyTheme(Store.get('vault_theme')==='dark');
     document.getElementById('bio-unlock-btn').style.display='none';
-    setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); },300);
+    setTimeout(()=>{ restoreAfterUnlock(); resetAutoLock(); checkBackupNudge(); checkExpiryAlerts(); checkCloudOnUnlock(); },300);
   } else {
     if(!state.unlocked){ lbl.textContent='Use PIN instead'; lbl.className='pin-label'; }
   }
@@ -1502,6 +1519,8 @@ document.getElementById('del-btn').addEventListener('click',()=>{ state.pinBuffe
 // ═══════════════════════════════════════
 async function saveEntries() {
   Store.set('vault_data', await Crypto.encrypt(state.entries, state.currentPIN));
+  Store.set('vault_local_updated', Date.now().toString());
+  CloudSync.scheduleSync();
 }
 
 const TYPE_META = {
@@ -2597,6 +2616,342 @@ document.getElementById('import-file').addEventListener('change',async e=>{
 });
 
 // ═══════════════════════════════════════
+//  CLOUD SYNC (R5)
+// ═══════════════════════════════════════
+const CloudSync = {
+  app:null, auth:null, db:null, ready:false, syncTimer:null,
+  unsubscribe:null,
+
+  async loadSDK(){
+    if(this.ready) return true;
+    try{
+      const [{initializeApp}, authMod, fsMod] = await Promise.all([
+        import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js'),
+      ]);
+      const firebaseConfig = {
+        apiKey: "AIzaSyB5C91TZF0wDqyps4e0tT53nQqJIunBWfw",
+        authDomain: "vault-6207a.firebaseapp.com",
+        projectId: "vault-6207a",
+        storageBucket: "vault-6207a.firebasestorage.app",
+        messagingSenderId: "647766664046",
+        appId: "1:647766664046:web:8e225a74095fc39062177f"
+      };
+      this.app = initializeApp(firebaseConfig);
+      this.authMod = authMod;
+      this.fsMod = fsMod;
+      this.auth = authMod.getAuth(this.app);
+      this.db = fsMod.getFirestore(this.app);
+      this.ready = true;
+      return true;
+    } catch(e){
+      console.error('Firebase SDK load failed', e);
+      return false;
+    }
+  },
+
+  // ── Sign in / out ──────────────────────────
+  async signIn(){
+    const ok = await this.loadSDK();
+    if(!ok){ toast('Could not load cloud sync — check connection'); return false; }
+    const provider = new this.authMod.GoogleAuthProvider();
+    try{
+      const result = await this.authMod.signInWithPopup(this.auth, provider);
+      state.cloudUser = result.user;
+      return true;
+    } catch(e){
+      if(e.code === 'auth/popup-blocked' || e.code === 'auth/cancelled-popup-request'){
+        try{
+          await this.authMod.signInWithRedirect(this.auth, provider);
+          return true; // page will reload
+        } catch(e2){ console.error(e2); }
+      }
+      if(e.code !== 'auth/popup-closed-by-user') console.error('Sign-in failed', e);
+      return false;
+    }
+  },
+
+  async signOutLocal(){
+    if(this.auth) await this.authMod.signOut(this.auth).catch(()=>{});
+    state.cloudUser = null;
+    if(this.unsubscribe){ this.unsubscribe(); this.unsubscribe=null; }
+  },
+
+  // ── Enable / disable toggle ────────────────
+  async enableSync(){
+    const signedIn = await this.signIn();
+    if(!signedIn || !state.cloudUser) return false;
+
+    Store.set('vault_cloud_uid', state.cloudUser.uid);
+    Store.set('vault_cloud_email', state.cloudUser.email||'');
+
+    // Initial reconcile — whichever blob is newer wins
+    this.setStatus('syncing');
+    try{
+      const ref = this.docRef();
+      const snap = await this.fsMod.getDoc(ref);
+      const localUpdated = parseInt(Store.get('vault_local_updated')||'0');
+      if(snap.exists()){
+        const remote = snap.data();
+        const remoteUpdated = remote.updated || 0;
+        if(remoteUpdated > localUpdated){
+          // Cloud is newer — pull it down
+          if(!state.currentPIN){ toast('Unlock vault to complete sync'); }
+          else {
+            const entries = migrateEntries(await Crypto.decrypt(remote.data, state.currentPIN));
+            state.entries = entries;
+            Store.set('vault_data', await Crypto.encrypt(state.entries, state.currentPIN));
+            Store.set('vault_local_updated', remoteUpdated.toString());
+            renderEntries(true); updateStats();
+            toast('Synced from cloud ✓');
+          }
+        } else {
+          // Local is newer or equal — push up
+          await this.uploadBlob();
+        }
+      } else {
+        // Nothing in cloud yet — push local
+        await this.uploadBlob();
+      }
+      state.cloudSyncOn = true;
+      Store.set('vault_cloud_sync', '1');
+      Store.set('vault_last_sync', Date.now().toString());
+      this.setStatus('synced');
+      this.startListener();
+      return true;
+    } catch(e){
+      console.error('Initial sync failed', e);
+      this.setStatus('failed');
+      state.cloudSyncOn = true; // still consider it on; will retry
+      Store.set('vault_cloud_sync', '1');
+      return true;
+    }
+  },
+
+  disableSync(){
+    state.cloudSyncOn = false;
+    Store.set('vault_cloud_sync', '0');
+    if(this.unsubscribe){ this.unsubscribe(); this.unsubscribe=null; }
+    this.setStatus('idle');
+    updateCloudUI();
+  },
+
+  // ── Delete cloud data & sign out ───────────
+  async deleteCloudAndSignOut(){
+    try{
+      if(state.cloudUser){
+        const ref = this.docRef();
+        await this.fsMod.deleteDoc(ref).catch(()=>{});
+      }
+    } catch(e){ console.error('Cloud delete failed', e); }
+    this.disableSync();
+    await this.signOutLocal();
+    Store.set('vault_cloud_uid','');
+    Store.set('vault_cloud_email','');
+    Store.set('vault_last_sync','');
+    updateCloudUI();
+  },
+
+  // ── Core sync ops ───────────────────────────
+  docRef(){
+    const uid = state.cloudUser ? state.cloudUser.uid : Store.get('vault_cloud_uid');
+    return this.fsMod.doc(this.db, 'users', uid, 'vault', 'data');
+  },
+
+  async uploadBlob(){
+    const enc = Store.get('vault_data');
+    if(!enc) return;
+    const updated = parseInt(Store.get('vault_local_updated')||Date.now().toString());
+    const ref = this.docRef();
+    await this.fsMod.setDoc(ref, { data: enc, updated });
+    Store.set('vault_last_sync', Date.now().toString());
+  },
+
+  // Called after save/unlock/online — debounced
+  scheduleSync(){
+    if(!state.cloudSyncOn || !state.unlocked) return;
+    if(!navigator.onLine){ this.setStatus('offline'); updateCloudUI(); return; }
+    clearTimeout(this.syncTimer);
+    this.syncTimer = setTimeout(()=>this.runSync(), 800);
+  },
+
+  async runSync(){
+    if(!state.cloudSyncOn) return;
+    if(!navigator.onLine){ this.setStatus('offline'); updateCloudUI(); return; }
+    const ok = await this.loadSDK();
+    if(!ok){ this.setStatus('failed'); updateCloudUI(); return; }
+    if(!this.auth.currentUser){ this.setStatus('failed'); updateCloudUI(); return; }
+    this.setStatus('syncing'); updateCloudUI();
+    try{
+      await this.uploadBlob();
+      this.setStatus('synced');
+    } catch(e){
+      console.error('Sync failed', e);
+      this.setStatus('failed');
+    }
+    updateCloudUI();
+  },
+
+  // Live listener — picks up remote changes from other devices
+  startListener(){
+    if(!this.ready || !state.cloudUser) return;
+    if(this.unsubscribe) this.unsubscribe();
+    const ref = this.docRef();
+    this.unsubscribe = this.fsMod.onSnapshot(ref, async (snap)=>{
+      if(!snap.exists() || !state.unlocked || !state.currentPIN) return;
+      const remote = snap.data();
+      const localUpdated = parseInt(Store.get('vault_local_updated')||'0');
+      if((remote.updated||0) > localUpdated){
+        try{
+          const entries = migrateEntries(await Crypto.decrypt(remote.data, state.currentPIN));
+          state.entries = entries;
+          Store.set('vault_data', await Crypto.encrypt(state.entries, state.currentPIN));
+          Store.set('vault_local_updated', remote.updated.toString());
+          if(state.currentNav==='home') renderEntries(true);
+          else if(state.currentNav==='fav') renderFavs();
+          updateStats();
+          this.setStatus('synced'); updateCloudUI();
+          toast('Synced from another device ☁️');
+        } catch(e){ console.error('Remote pull failed', e); }
+      }
+    }, (err)=>{ console.error('Listener error', err); });
+  },
+
+  setStatus(s){ state.syncStatus = s; },
+
+  // ── Restore on cold start ──────────────────
+  async restore(){
+    state.cloudSyncOn = Store.get('vault_cloud_sync')==='1';
+    if(!state.cloudSyncOn) return;
+    const ok = await this.loadSDK();
+    if(!ok){ this.setStatus('failed'); return; }
+    // Wait for Firebase auth to restore persisted session
+    this.authMod.onAuthStateChanged(this.auth, (user)=>{
+      if(user){
+        state.cloudUser = user;
+        this.setStatus('synced');
+        this.startListener();
+      } else {
+        // Session lost — sync was on but no auth; treat as failed until re-enabled
+        this.setStatus('failed');
+      }
+      updateCloudUI();
+    });
+  },
+};
+
+window.addEventListener('online', ()=>{ if(state.cloudSyncOn) CloudSync.scheduleSync(); });
+window.addEventListener('offline', ()=>{ if(state.cloudSyncOn){ CloudSync.setStatus('offline'); updateCloudUI(); } });
+
+// ── Cloud UI rendering ───────────────────────
+function formatSyncTime(ts){
+  if(!ts) return 'never';
+  const diff = Date.now() - ts;
+  if(diff < 60000) return 'just now';
+  if(diff < 3600000) return `${Math.floor(diff/60000)} min ago`;
+  if(diff < 86400000) return `${Math.floor(diff/3600000)} hours ago`;
+  return `${Math.floor(diff/86400000)} days ago`;
+}
+
+function updateCloudUI(){
+  const toggle = document.getElementById('cloud-toggle');
+  const desc = document.getElementById('cloud-desc');
+  const statusItem = document.getElementById('s-cloud-status');
+  const deleteItem = document.getElementById('s-cloud-delete');
+  const account = document.getElementById('cloud-account');
+  const statusLine = document.getElementById('cloud-status-line');
+  const homeIcon = document.getElementById('home-cloud-icon');
+
+  toggle.classList.toggle('on', state.cloudSyncOn);
+  desc.textContent = state.cloudSyncOn ? 'Syncing across your devices' : 'Sign in with Google to sync across devices';
+
+  const signedIn = !!(state.cloudUser || Store.get('vault_cloud_uid'));
+
+  if(state.cloudSyncOn && signedIn){
+    statusItem.classList.remove('hidden');
+    deleteItem.classList.remove('hidden');
+    const email = (state.cloudUser && state.cloudUser.email) || Store.get('vault_cloud_email') || '';
+    account.textContent = email || 'Signed in';
+    const lastSync = parseInt(Store.get('vault_last_sync')||'0');
+    const lines = {
+      syncing:'Syncing…',
+      synced:`Synced ${formatSyncTime(lastSync)}`,
+      failed:'Sync failed — tap to retry',
+      offline:'Offline — changes saved locally',
+      idle:`Synced ${formatSyncTime(lastSync)}`,
+    };
+    statusLine.textContent = lines[state.syncStatus] || lines.idle;
+    statusLine.style.color = state.syncStatus==='failed' ? 'var(--red)' : 'var(--muted)';
+
+    if(homeIcon){
+      const icons = { syncing:'🔄', synced:'☁️', failed:'❌', offline:'📴', idle:'☁️' };
+      homeIcon.textContent = icons[state.syncStatus] || '☁️';
+      homeIcon.style.display = 'inline';
+    }
+  } else {
+    statusItem.classList.add('hidden');
+    deleteItem.classList.add('hidden');
+    if(homeIcon) homeIcon.style.display = 'none';
+  }
+}
+
+document.getElementById('cloud-toggle').addEventListener('click', async ()=>{
+  if(state.cloudSyncOn){
+    CloudSync.disableSync();
+    toast('Cloud sync paused');
+  } else {
+    document.getElementById('cloud-toggle').classList.add('on'); // optimistic
+    document.getElementById('cloud-desc').textContent = 'Signing in…';
+    const ok = await CloudSync.enableSync();
+    if(!ok){
+      document.getElementById('cloud-toggle').classList.remove('on');
+      document.getElementById('cloud-desc').textContent = 'Sign in with Google to sync across devices';
+      toast('Sign-in cancelled');
+    } else {
+      toast('Cloud sync enabled ☁️');
+    }
+    updateCloudUI();
+  }
+});
+
+document.getElementById('s-cloud-status').addEventListener('click', ()=>{
+  if(state.syncStatus==='failed') CloudSync.runSync().then(updateCloudUI);
+});
+
+document.getElementById('s-cloud-delete').addEventListener('click', async ()=>{
+  if(state.unlockedViaBio){
+    const ok = await requirePIN('Enter PIN to continue');
+    if(!ok) return;
+  }
+  const sheet = document.getElementById('delete-sheet');
+  const msg = document.getElementById('delete-sheet-msg');
+  const btnOk = document.getElementById('delete-sheet-confirm');
+  const btnCx = document.getElementById('delete-sheet-cancel');
+  msg.innerHTML = `This deletes your cloud backup and signs you out <span class="delete-sheet-entry-name">on this device only</span>. Your local vault is unaffected. If you're signed in on other devices, they may automatically re-upload their data.`;
+  btnOk.textContent = 'Delete & Sign Out';
+  document.getElementById('delete-overlay').classList.add('active');
+  function finish(result){
+    document.getElementById('delete-overlay').classList.remove('active');
+    btnOk.removeEventListener('click', onOk);
+    btnCx.removeEventListener('click', onCancel);
+    document.getElementById('delete-overlay').removeEventListener('click', onOverlay);
+    btnOk.textContent = 'Delete';
+    if(result) resolve();
+  }
+  async function resolve(){
+    await CloudSync.deleteCloudAndSignOut();
+    toast('Cloud data deleted & signed out');
+  }
+  function onOk(){ finish(true); }
+  function onCancel(){ finish(false); }
+  function onOverlay(e){ if(e.target===document.getElementById('delete-overlay')) finish(false); }
+  btnOk.addEventListener('click', onOk);
+  btnCx.addEventListener('click', onCancel);
+  document.getElementById('delete-overlay').addEventListener('click', onOverlay);
+});
+
+// ═══════════════════════════════════════
 //  CUSTOM DELETE CONFIRM
 function confirmDelete(entryName) {
   return new Promise(resolve => {
@@ -2627,12 +2982,49 @@ function confirmDelete(entryName) {
   });
 }
 
+// On unlock, if sync is on and there's a newer remote blob, pull it in.
+// (The live listener handles ongoing updates; this catches changes made
+// while this device was locked/offline.)
+async function checkCloudOnUnlock(){
+  if(!state.cloudSyncOn) { updateCloudUI(); return; }
+  if(!navigator.onLine){ CloudSync.setStatus('offline'); updateCloudUI(); return; }
+  const ok = await CloudSync.loadSDK();
+  if(!ok){ CloudSync.setStatus('failed'); updateCloudUI(); return; }
+  if(!CloudSync.auth.currentUser){ CloudSync.setStatus('failed'); updateCloudUI(); return; }
+  state.cloudUser = CloudSync.auth.currentUser;
+  CloudSync.setStatus('syncing'); updateCloudUI();
+  try{
+    const snap = await CloudSync.fsMod.getDoc(CloudSync.docRef());
+    const localUpdated = parseInt(Store.get('vault_local_updated')||'0');
+    if(snap.exists() && (snap.data().updated||0) > localUpdated){
+      const remote = snap.data();
+      const entries = migrateEntries(await Crypto.decrypt(remote.data, state.currentPIN));
+      state.entries = entries;
+      Store.set('vault_data', await Crypto.encrypt(state.entries, state.currentPIN));
+      Store.set('vault_local_updated', remote.updated.toString());
+      if(state.currentNav==='home') renderEntries(true);
+      else if(state.currentNav==='fav') renderFavs();
+      updateStats();
+      toast('Synced from cloud ☁️');
+    }
+    Store.set('vault_last_sync', Date.now().toString());
+    CloudSync.setStatus('synced');
+    CloudSync.startListener();
+  } catch(e){
+    console.error('Unlock sync failed', e);
+    CloudSync.setStatus('failed');
+  }
+  updateCloudUI();
+}
+
 // ═══════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════
 function init() {
   applyTheme(Store.get('vault_theme')==='dark');
   updateBioToggleUI();
+  CloudSync.restore();
+  updateCloudUI();
   const hasPin=!!Store.get('vault_pin');
   initPINScreen(hasPin?'unlock':'setup');
   showScreen('pin-screen');
