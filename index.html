@@ -552,18 +552,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 .doc-meta{font-size:12px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .doc-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
 
-/* Floating add button for Docs */
-.docs-fab{
-  position:absolute;right:20px;bottom:calc(var(--nav-h) + 20px);
-  width:56px;height:56px;border-radius:18px;
-  background:var(--accent-g);border:none;color:#fff;
-  font-size:26px;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 6px 24px rgba(91,95,245,.4);
-  transition:all .14s;z-index:30;
-}
-.docs-fab:active{transform:scale(.9);}
-
 .docs-empty-wrap{flex:1;display:flex;align-items:center;justify-content:center;}
 
 /* Upload progress row */
@@ -906,7 +894,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <div class="screen hidden" id="docs-screen" style="position:relative">
   <div class="topbar"><h2>📄 Documents</h2><button class="lock-top-btn" id="lock-top-btn-docs" title="Lock Vault">🔒</button></div>
   <div class="docs-list" id="docs-list"></div>
-  <button class="docs-fab" id="docs-add-btn">+</button>
   <input type="file" id="doc-file-input" style="display:none"/>
   <div class="bottom-nav">
     <div class="nav-item" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
@@ -994,11 +981,6 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-item" id="s-change-pin">
       <span class="s-icon">🔑</span>
       <div class="s-info"><div class="s-title">Change PIN</div><div class="s-desc">Update your 6-digit PIN</div></div>
-      <span class="s-arrow">›</span>
-    </div>
-    <div class="settings-item" id="s-lock">
-      <span class="s-icon">🔒</span>
-      <div class="s-info"><div class="s-title">Lock Vault</div><div class="s-desc">Lock immediately</div></div>
       <span class="s-arrow">›</span>
     </div>
 
@@ -1393,10 +1375,16 @@ document.getElementById('add-btn-settings').addEventListener('click', async () =
   openForm();
 });
 document.getElementById('add-btn-docs').addEventListener('click', () => {
+  state.importInProgress=true; // prevent visibilitychange from locking vault during file picker
   document.getElementById('doc-file-input').click();
 });
-document.getElementById('docs-add-btn').addEventListener('click', () => {
-  document.getElementById('doc-file-input').click();
+
+// Safety net — if the file picker is cancelled (no 'change' fires on some
+// browsers), make sure importInProgress doesn't get stuck true and
+// permanently disable the auto-lock-on-hide check.
+['doc-file-input','import-file','import-docs-file'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener('cancel', ()=>{ state.importInProgress=false; });
 });
 
 // ═══════════════════════════════════════
@@ -2752,7 +2740,6 @@ document.getElementById('form-back').addEventListener('click',()=>{
 // ═══════════════════════════════════════
 //  SETTINGS
 // ═══════════════════════════════════════
-document.getElementById('s-lock').addEventListener('click', lockVault);
 document.getElementById('s-change-pin').addEventListener('click', () => {
   initPINScreen('change-old'); showScreen('pin-screen');
 });
@@ -3515,6 +3502,7 @@ function renderDocs(){
 //  DOCS — ADD (file picker)
 // ═══════════════════════════════════════
 document.getElementById('doc-file-input').addEventListener('change', async (e)=>{
+  state.importInProgress=false;
   const file=e.target.files[0];
   e.target.value='';
   if(!file) return;
