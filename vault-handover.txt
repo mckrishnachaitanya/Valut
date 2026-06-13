@@ -4,6 +4,7 @@ GitHub: https://mckrishnachaitanya.github.io/Vault/
 Stack:  Single HTML file, Web Crypto (AES-256-GCM+PBKDF2), WebAuthn,
         localStorage, Google Fonts. No build step.
 Deploy: Upload index.html to GitHub Pages. Done.
+VERSION: v5.0 — 13-Jun-2026 — ~3797 lines.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FROZEN — Architecture & Decisions
@@ -13,11 +14,17 @@ CORE ARCHITECTURE
 -----------------
 - 6-digit PIN → PBKDF2 key → AES-256-GCM encrypts entry array → localStorage
 - localStorage keys: vault_data, vault_pin, vault_theme, vault_bio,
-  vault_bio_cred, vault_lockout, vault_fails, vault_last_backup
+  vault_bio_cred, vault_lockout, vault_fails, vault_local_updated,
+  vault_cloud_sync, vault_cloud_uid, vault_cloud_email, vault_last_sync,
+  vault_sync_pending
+- IndexedDB "VaultDocsDB": object stores "meta" (key 'manifest' →
+  encrypted manifest array) and "files" (key = doc id → encrypted
+  {data: base64String}). See "R6a SUMMARY" below.
 - state{} holds: entries, currentPIN, unlocked, unlockedViaBio,
   stepUpDone, pinBuffer, pinMode, pinTemp, editId, activeFilter,
   currentNav, detailSource, failCount, preLockScreen, formDraft,
-  bioGen, bioPending
+  bioGen, bioPending, cloudUser, cloudSyncOn, syncStatus,
+  docsStepUpDone, docs[] (in-memory decrypted manifest)
 - Auto-lock: 2min idle. Lockout: 5 fails → timed delay.
 - Single file always. No build tooling. No frameworks.
 
@@ -43,42 +50,32 @@ BIOMETRIC RULES
 - WebAuthn platform only. Credential ID stored in vault_bio_cred.
 - Fresh app open: PIN required once to seed currentPIN in memory.
   Bio button shows but does NOT auto-trigger on fresh open.
-  Subtitle shows "Enter PIN once to activate biometric".
-- After first PIN entry: bio auto-triggers on every subsequent auto-lock.
-- Auto-trigger mechanism: initPINScreen('unlock') sets state.bioPending=true
-  (does NOT fire immediately via timer — WebAuthn requires document focus,
-  and visibilitychange/lockVault fire BEFORE focus returns on Android Chrome).
-  triggerPendingBio() is called from visibilitychange(visible) and
-  window 'focus' listeners; only proceeds if document.hidden===false AND
-  document.hasFocus()===true at that moment, then fires after 150ms.
-  state.bioGen exists but bioPending model makes races largely moot.
-- unlockedViaBio=true → step-up PIN required for Card/Bank/Identity view,
-  for Add/Edit/Delete/Export actions, AND for restoring an in-progress
-  Add/Edit form after re-auth (restoreAfterUnlock form-screen branch).
-- stepUpDone=true after first step-up (resets on lockVault).
-  Manual PIN unlock (not bio) ALSO sets stepUpDone=true — re-entering
-  PIN to unlock proves PIN knowledge, satisfies step-up for that session.
-- Settings security actions always prompt PIN directly (bypass stepUpDone).
-- Step-up condition: state.unlockedViaBio (not isBioEnabled).
+- After first PIN entry: bio auto-triggers on every subsequent
+  auto-lock, via state.bioPending + visibilitychange/focus listeners
+  (WebAuthn requires document focus, which isn't guaranteed at the
+  moment lockVault fires on Android Chrome).
+- unlockedViaBio=true → step-up PIN required for Card/Bank/Identity
+  view, Add/Edit/Delete/Export actions, and restoring an in-progress
+  Add/Edit form after re-auth.
+- stepUpDone=true after first step-up (resets on lockVault). Manual
+  PIN unlock ALSO sets stepUpDone=true (re-entering PIN proves PIN
+  knowledge, satisfies step-up for that session).
+- Settings security actions always prompt PIN directly (bypass
+  stepUpDone). Step-up condition: state.unlockedViaBio (not
+  isBioEnabled).
 
 SCREEN RESTORE AFTER RE-AUTH
 ----------------------------
-- lockVault() captures state.preLockScreen (form-screen/detail-screen/
-  fav-screen/settings-screen) before locking. For form-screen, also
-  captures state.formDraft via captureFormDraft() — snapshots formState,
-  customFieldsData, editId, and all #form-body .field-input values.
-- restoreAfterUnlock() (async) is called after successful unlock
-  (manual PIN or bio) instead of always going to home-screen:
-  - form-screen: if unlockedViaBio, requires step-up PIN first
-    (cancel -> discard draft, go home). Otherwise restores draft via
-    renderForm() + restoreFormDraft().
-  - detail-screen: re-opens same entry via openDetail() (which itself
-    re-checks step-up for sensitive entries if unlockedViaBio).
-  - fav-screen / settings-screen: just re-shown.
-  - default: home-screen (cold starts always land here, since
-    preLockScreen is only set by lockVault during an active session).
-- Cold start (fresh page load) is unaffected — currentPIN empty,
-  preLockScreen never set, always goes to home after unlock.
+- lockVault() captures state.preLockScreen (form/detail/fav/settings)
+  before locking. For form-screen, also captures state.formDraft via
+  captureFormDraft() (formState, customFieldsData, editId, all
+  #form-body field values).
+- restoreAfterUnlock() runs after successful unlock instead of always
+  going home: form-screen requires step-up first if unlockedViaBio
+  (cancel → discard draft, go home), else restores via renderForm() +
+  restoreFormDraft(). detail-screen re-opens via openDetail() (re-checks
+  step-up itself). fav/settings just re-shown. Default: home.
+- Cold start always goes home after unlock (preLockScreen never set).
 
 SECURITY TIERS
 --------------
@@ -89,10 +86,9 @@ SECURITY TIERS
 NUMBER FORMATTING
 -----------------
 - cardNumber and Aadhaar docNumber stored as raw digits (no spaces).
-- Formatted on display only: formatCardNumber(), formatAadhaar().
-  15 digits → Amex 4-6-5. 16 digits → standard 4-4-4-4.
-  12 digits (Aadhaar) → 4-4-4. Other lengths → shown as-is.
-- Card list subtitle (•••• 1234) reads raw digits directly.
+  Formatted on display only via formatCardNumber()/formatAadhaar():
+  15 digits → Amex 4-6-5, 16 → standard 4-4-4-4, 12 (Aadhaar) → 4-4-4.
+  Other lengths shown as-is. Card list subtitle reads raw digits.
 
 RULED OUT — PERMANENTLY
 -----------------------
@@ -102,57 +98,42 @@ RULED OUT — PERMANENTLY
 
 ROADMAP (locked sequence)
 -------------------------
-R5  → SHIPPED (v4.3, see below).
-R6a → Document vault: IndexedDB, new Docs tab, per-file encryption.
+R5  → SHIPPED (v4.3) & fully tested (v4.5). All 11 test categories
+       pass — Cloud Sync via Firebase Auth+Firestore, last-write-wins
+       whole-blob sync, status icons, delete-cloud-data flow. See
+       "R5 SUMMARY" below for key implementation facts that affect
+       future work.
+R6a → SHIPPED (v5.0) — Document vault: IndexedDB, Docs tab, per-file
+       encryption, viewer, step-up gating, zip export/import. NOT YET
+       BROWSER-TESTED. See "R6a SUMMARY" below.
 R6b → Document sync: Firebase Storage, offline-first.
 
-R5 IMPLEMENTATION NOTES (shipped v4.3)
----------------------------------------
+R5 SUMMARY (facts relevant to future sync/storage work)
+---------------------------------------------------------
 - Firebase loaded via CDN ES module dynamic import() (firebase-app,
-  firebase-auth, firebase-firestore v10.12.2) — no build step, lazy
-  loaded only when sync is touched.
-- Auth: signInWithPopup (GoogleAuthProvider), falls back to
-  signInWithRedirect on auth/popup-blocked or cancelled-popup-request.
-- Firestore doc: users/{uid}/vault/data — fields {data: <encrypted
-  blob string>, updated: <ms timestamp>}.
-- New localStorage keys: vault_local_updated (set on every
-  saveEntries()), vault_cloud_sync ('1'/'0'), vault_cloud_uid,
-  vault_cloud_email, vault_last_sync, vault_sync_pending (transient —
-  set before signInWithRedirect, cleared on return; signals
-  restore() to call getRedirectResult()).
-- Settings → Cloud Sync section:
-  - Toggle ON: signs in (popup), then reconciles local vs remote blob
-    by `updated` timestamp (newer wins, whole-blob, no entry merge).
-    Starts onSnapshot live listener for cross-device updates.
-  - Toggle OFF: pauses sync only. Stays signed in to Firebase Auth.
-    Firestore data untouched. Local data untouched.
-  - "Delete Cloud Data & Sign Out" (separate destructive action, only
-    visible when signed in): deletes users/{uid}/vault/data, calls
-    signOut() (this device only — does NOT affect other signed-in
-    devices), clears cloud-related localStorage keys. Local vault
-    entries untouched. Confirm dialog explains other devices may
-    auto re-upload.
-- Sync triggers: scheduleSync() (800ms debounce) called from
-  saveEntries() — fires on every save/edit/delete. checkCloudOnUnlock()
-  runs on PIN unlock and biometric unlock — pulls newer remote blob if
-  one exists (handles offline/locked period changes). 'online' window
-  event also triggers scheduleSync().
-- CloudSync.restore() on cold init re-attaches onAuthStateChanged if
-  vault_cloud_sync==='1', restoring the live listener without
-  re-prompting sign-in (Firebase Auth persists session per-device).
-- Live listener (onSnapshot) guards: only acts if state.unlocked &&
-  state.currentPIN set — locked vault ignores remote pushes until
-  unlocked, at which point checkCloudOnUnlock() catches up anyway.
-- Home header shows cloud status icon only when sync ON: 🔄 syncing /
-  ☁️ synced / ❌ failed / 📴 offline. Settings shows account email +
-  "Synced X ago" / "Sync failed — tap to retry" (tap retries) /
-  "Offline — changes saved locally".
-- Conflict resolution: last-write-wins by blob-level `updated`
-  timestamp, both on initial enable and on every listener push —
-  whole-blob replace, no per-entry merging (matches roadmap).
-- Cross-device real-time coordination (presence, tombstones, merge UI)
-  explicitly out of scope — discussed and deferred as a much larger
-  redesign; last-write-wins is acceptable for a 1-user/few-device app.
+  firebase-auth, firebase-firestore v10.12.2), lazy-loaded only when
+  sync is touched — no build step. This is the pattern to follow for
+  any future CDN library (e.g. JSZip for R6a).
+- Auth: signInWithPopup, falls back to signInWithRedirect on
+  popup-blocked/cancelled (this device always uses redirect — handled
+  via vault_sync_pending flag + getRedirectResult() in restore()).
+- Firestore doc: users/{uid}/vault/data — {data: <encrypted blob>,
+  updated: <ms timestamp>}. Conflict resolution: last-write-wins by
+  `updated`, whole-blob replace, no per-entry merge (by design).
+- CRITICAL LESSON (caused real data loss, now fixed): timestamp-only
+  "newer wins" is unsafe when one side can be "newer but empty" (e.g.
+  a fresh PIN setup sets vault_local_updated to "now" with entries=[]).
+  Fix pattern used everywhere blobs are compared: empty-local +
+  non-empty-remote ALWAYS pulls down regardless of timestamps;
+  non-empty-local + empty-remote ALWAYS pushes up; an incoming update
+  that decrypts to empty while local is non-empty is IGNORED (logged).
+  Apply the same emptiness-aware guard to any new sync/replace logic
+  (R6a/R6b document blobs included).
+- confirmDelete() previously had a fixed bug (undefined `overlay` —
+  now resolved via document.getElementById('delete-overlay') at top
+  of function). No other open bugs.
+- Billing: Firebase project on Spark (free) plan, no payment method —
+  quotas far exceed personal use, no surprise-bill risk.
 
 WARNINGS
 --------
@@ -161,166 +142,90 @@ WARNINGS
 - Always export before PIN change or new deploy.
 - After uploading new index.html: clear PWA cache via
   chrome://settings/siteData → github.io → delete.
-- Firestore security rules must allow read/write/delete on
-  users/{uid}/vault/{document=**} for request.auth.uid==uid (the
-  doc path actually used is users/{uid}/vault/data — confirm the
-  existing rule, written for users/{uid}/vault, covers this
-  subcollection/document path before testing R5).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CURRENT — Active State
+R6a SUMMARY — implemented, not yet browser-tested
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-VERSION: v4.5 — 13-Jun-2026
-Lines:   ~3145
+- IndexedDB "VaultDocsDB" v1: stores "meta" (key 'manifest' → Crypto
+  blob of [{id,name,mimeType,size,created,updated,fav,thumb}]) and
+  "files" (key=id → Crypto blob of {data:base64String}). thumb is a
+  data: URI (only for images), stored in the manifest for fast list
+  thumbnails without decrypting the full file.
+- DocsDB module: open/get/put/delete/loadManifest/saveManifest/
+  loadFile/saveFile/deleteFile/reencryptAll(oldPin,newPin). Same
+  Crypto.encrypt/decrypt as vault_data — no separate key derivation.
+- state.docs holds the decrypted manifest in memory while unlocked;
+  loaded via loadDocsManifest() on entering the Docs tab.
+- Nav: Docs is the 5th bottom-nav slot (Home/Starred/+Add/Settings/
+  Docs) on Home, Starred, Settings, and Docs screens. Lock moved to
+  a top-right .lock-top-btn icon (id pattern lock-top-btn-{screen})
+  on Home/Starred/Settings/Docs, same lockVault() handler.
+- DOCS TAB GATE: openDocsTab() — if unlockedViaBio && !docsStepUpDone,
+  calls _showStepUpModal() directly (bypasses requirePIN's
+  stepUpDone shortcut). On success sets BOTH docsStepUpDone=true and
+  stepUpDone=true (entering Docs satisfies step-up for the rest of
+  the session, matching the "manual PIN unlock sets stepUpDone"
+  precedent). docsStepUpDone resets in lockVault() alongside
+  stepUpDone. No per-document sensitiveOverride — the tab is the gate.
+- Add: file input (no capture attribute set — add later if camera
+  capture for images is wanted) → fileToBase64() → DocsDB.saveFile()
+  → unshift into state.docs → saveDocsManifest(). Inline upload row
+  (.doc-upload-row, spinner) shown during encrypt+write.
+- Viewer (docview-screen): images render via <img> from a blob: URL
+  (base64ToBlob); PDFs via <embed type="application/pdf">; everything
+  else shows a "no preview" placeholder. blob: URLs are revoked on
+  back/delete/re-open to avoid leaks. Download/Share button uses
+  navigator.share with a File if canShare({files}) is supported,
+  else falls back to an <a download> click.
+- Delete: same confirmDelete() sheet as entries, same step-up-if-bio
+  gate as entry delete. Removes from manifest + DocsDB files store.
+- PIN change (change-confirm): captures oldPin BEFORE reassigning
+  state.currentPIN, then DocsDB.reencryptAll(oldPin, newPin) runs
+  before the existing doExport() backup-export step.
+- lockVault()/restoreAfterUnlock(): docs-screen and docview-screen
+  (via currentDocDetail) added to preLockScreen capture/restore,
+  same pattern as fav/settings/detail. Restoring into docview-screen
+  re-enters via openDocsTab()+openDocDetail() so step-up re-fires
+  correctly if needed.
+- navigator.storage.persist() called once in init() (best-effort,
+  no UI).
+- EXPORT/IMPORT (separate from .vault entry backup): JSZip lazy-
+  loaded from cdn.jsdelivr.net (same dynamic-import pattern as
+  Firebase in R5). Export zip = manifest.json (PLAINTEXT metadata
+  only — names/sizes/dates/fav, no file contents) + files/<id>.bin
+  (the raw, still-encrypted Crypto blob from IndexedDB, written
+  as-is — files are never decrypted to disk during export).
+  Settings items: s-docs-export / s-docs-import, same
+  step-up-if-bio gating as s-export.
+- IMPORT PIN CAVEAT: imported file blobs were encrypted with whatever
+  PIN was active at export time. Import only succeeds for files that
+  decrypt under the CURRENT PIN (i.e. importing back into the same
+  vault after a PIN change without re-export will silently skip
+  those files — toast says "PIN mismatch?"). If R6b or a future
+  session wants cross-PIN import, the zip would need to carry a
+  PIN-independent wrapping key, which is a real design change — flag
+  before building.
+- id collisions on import (re-importing the same zip twice) are
+  handled by generating a fresh id for any doc.id already present in
+  state.docs.
 
-SHIPPED THIS SESSION
---------------------
-- R5: Cloud Sync implemented (see R5 IMPLEMENTATION NOTES above for
-  full details). Settings → Cloud Sync section with toggle, account
-  status line, and "Delete Cloud Data & Sign Out" action. Home header
-  shows sync status icon when enabled.
-- NOTE: there is a pre-existing latent bug in confirmDelete() —
-  references an undefined global `overlay` variable (should be
-  document.getElementById('delete-overlay')). Not touched this
-  session (out of scope), flagging for next bug pass since it may
-  throw if confirmDelete() is ever exercised on a fresh load.
-
-OPEN BUGS
----------
-None. (confirmDelete() undefined `overlay` bug — found and fixed
-during R5 testing, see below.)
-
-R5 ON-DEVICE TEST PROGRESS (against test plan)
-------------------------------------------------
-PASS — Test 1 (Enable Sync, Fresh State): 1.1-1.4 all pass.
-  Auth flow is signInWithRedirect on this device (popup never appears
-  on this browser/PWA — always redirects to accounts.google.com).
-  Added getRedirectResult() handling in CloudSync.restore() via
-  vault_sync_pending flag, set before signInWithRedirect, cleared and
-  resolved (success → reconcile(), cancel → 'Sign-in cancelled' +
-  cloudSyncOn reset to '0') on the page load after redirect returns.
-PASS — Test 8 (Disable/Pause): 8.1, 8.3, 8.4 pass. Toggle off pauses
-  cleanly, Firestore doc untouched while off, re-enabling skips the
-  account picker (already signed in) and reconciles immediately.
-PASS — Test 9 (Delete Cloud Data & Sign Out): 9.1-9.3, 9.6 pass.
-  Firestore doc deleted, fully signed out (picker reappears on next
-  enable), local entries unaffected.
-
-CRITICAL BUG FOUND & FIXED — Test 2 (Initial Reconcile)
----------------------------------------------------------
-SEVERITY: Data loss. FIXED this session, but caused real data loss
-during testing (recovered via .vault backup import — see below).
-
-Repro: Device 1 (real entries, synced earlier). Device 2: same PIN
-entered for the FIRST time (fresh vault → setup flow runs
-saveEntries() with empty entries[], which sets vault_local_updated
-to "now"). Enable sync on Device 2.
-
-Bug: reconcile() compared only `remote.updated > local.updated`.
-Device 2's vault_local_updated (just now, from PIN setup) was NEWER
-than Device 1's cloud updated (set earlier) — even though Device 2's
-entries[] was empty. So Device 2 treated itself as "newer" and PUSHED
-its empty blob to Firestore, overwriting Device 1's real data. The
-live listener then pushed that empty blob down to Device 1 too —
-BOTH devices ended up empty.
-
-Fix (CloudSync.reconcile(), startListener(), checkCloudOnUnlock()):
-- reconcile() now also checks local/remote emptiness (decrypts remote
-  to check entries.length). Empty-local + non-empty-remote ALWAYS
-  pulls down regardless of timestamps. Non-empty-local + empty-remote
-  ALWAYS pushes up regardless of timestamps. New helper
-  CloudSync._isRemoteEmpty(remote).
-- startListener() onSnapshot callback and checkCloudOnUnlock(): if a
-  remote update decrypts to an empty array AND local state.entries is
-  non-empty, the update is IGNORED (console.warn logged) rather than
-  applied — prevents an empty remote push from silently wiping a
-  populated local vault, even after initial reconcile.
-
-Recovery performed: restored Device 1 from a recent .vault export via
-Settings → Import Backup. Import → saveEntries() → fresh
-vault_local_updated → pushed real data back to Firestore. Device 2
-(empty local, non-empty remote) then correctly pulled the restored
-data via the fixed logic. Both devices now have correct data.
-
-LESSON: timestamp-only "newer wins" is unsafe when one side can be
-"newer but empty" (e.g. any fresh PIN setup). Emptiness must be
-checked alongside timestamps for any blob-replacement decision.
-
-REMAINING TO TEST
--------------------
-PASS — Test 2 (Initial Reconcile, retroactively validated): the
-  recovery itself (Device 1 restore → push → Device 2 empty-local
-  pulled non-empty remote correctly) exercised the exact 2.1/2.2 path
-  with the fix in place and it worked as expected.
-PASS — Test 3 (Live sync on save): 3.1-3.3 pass — save triggers
-  sync (🔄→☁️ within ~1s, Firestore updated timestamp refreshes),
-  non-data settings (theme toggle) correctly do NOT trigger sync.
-  3.4 (rapid-fire debounce) skipped as unrealistic/low-value.
-PASS — Test 4 (Cross-device live listener via onSnapshot): 4.1-4.5
-  all pass. Add/edit/delete propagate live between devices, deletion
-  while on other screens unaffected, locked-device catches up via
-  checkCloudOnUnlock() on next unlock.
-
-BUG FIXED — confirmDelete() undefined `overlay` (the pre-existing bug
-  flagged earlier) was actually TRIGGERED during 4.4 — delete (both
-  trash icon and swipe) did nothing because finish() threw a
-  ReferenceError on overlay.classList. Fixed: overlay now resolved via
-  document.getElementById('delete-overlay') at the top of
-  confirmDelete(), same pattern as the cloud-delete handler. Confirmed
-  working after fix.
-
-PASS — Test 5 (Offline → online recovery): offline edits save
-  locally, icon shows 📴, reconnecting transitions 📴→🔄→☁️ and
-  syncs the offline-made changes to Firestore.
-PASS — Test 6 (Lock/unlock + auto-lock interaction with sync):
-  listener dormant while locked, checkCloudOnUnlock() catches up
-  correctly on PIN and biometric unlock.
-PASS — Test 7 (PIN change re-encrypts and re-uploads cloud blob):
-  changing PIN re-encrypts vault_data and pushes the new blob to
-  Firestore; other devices pick up the re-encrypted blob on next
-  unlock/sync (decrypt fails gracefully with old PIN until that
-  device's PIN is also updated).
-PASS — Test 9.4-9.5, 9.7: Firestore doc removed after delete+signout,
-  other signed-in device re-creates it on next save, step-up PIN
-  prompt appears before the delete action when unlockedViaBio.
-PASS — Test 10 (sensitive entries + bio unlock interaction with
-  sync): cross-device pulls decrypt silently in the background;
-  opening a sensitive entry (Card/Bank/Identity) still requires PIN
-  step-up per existing logic, independent of sync.
-
-PASS — Test 11 (error/edge cases, reviewed by code analysis + spot
-  checks rather than exhaustive on-device repro):
-  - 11.1 verified earlier (permission-denied → "Sync failed — tap to
-    retry", amber badge).
-  - 11.2 low risk: reconcile() either completes or throws (caught,
-    resets cloudSyncOn to '0'); app-close mid-reconcile leaves sync
-    appearing OFF on reopen, no data-loss path given empty-blob guards.
-  - 11.3 (self-triggered sync loop) — safe by construction:
-    uploadBlob() writes vault_local_updated as the doc's `updated`,
-    so the listener's `remote.updated > localUpdated` check is false
-    for the writer's own echo — no loop.
-  - 11.4 — restore() handles missing/failed SDK and unauthenticated
-    state gracefully without blocking PIN setup.
-  - 11.5 — vault is ~150 entries max, well under Firestore's 1MB
-    document limit (would need ~thousands of large entries to be a
-    concern).
-  - Billing: project is on Spark (free) plan, no payment method
-    attached. Spark has no-cost daily quotas (20K writes/50K reads)
-    far beyond personal-use volume; if ever exceeded, that product
-    just pauses for the rest of the month — no possibility of a
-    surprise bill without explicitly upgrading to Blaze (which
-    requires manually linking a billing account). No action needed.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-R5 STATUS: COMPLETE — ALL TESTS PASS (1-11)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NOT YET DONE / OPEN ITEMS
+-------------------------
+- No browser/device testing yet (IndexedDB, WebAuthn step-up gate on
+  Docs, JSZip CDN load, PDF <embed> rendering on Android Chrome, share
+  sheet for large files).
+- Camera capture (capture="environment") not added to doc-file-input
+  — add if photographing physical documents directly is wanted.
+- True folder export (showDirectoryPicker) still deferred, as planned.
+- R6b (Firebase Storage doc sync) not started — apply the same
+  emptiness-aware empty-vs-non-empty guard from R5 to any future
+  per-document sync logic.
 
 NEXT SESSION
 ------------
 Upload: index.html + this file.
-R5 is fully tested and complete (v4.5). All 11 test categories pass
-on device, including the empty-blob reconcile fix and the
-confirmDelete() bug fix (both now in code).
-R6a → say "Implement R6a" when ready.
+R6a → say "Test R6a" to walk through device testing, or report
+       results/bugs found during manual testing.
+R6b → say "Implement R6b" when ready (after R6a is tested).
 Bug → say "Bug: [describe]" for anything new found in normal use.

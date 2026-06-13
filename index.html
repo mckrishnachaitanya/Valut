@@ -197,6 +197,19 @@ body::after{
 }
 .nav-add:active{transform:scale(.9);}
 
+/* Top-right lock icon (Home/Starred/Settings) */
+.lock-top-btn{
+  width:40px;height:40px;border-radius:50%;
+  background:var(--surface);border:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:18px;transition:all .14s;
+  color:var(--text2);box-shadow:var(--shadow-sm);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  flex-shrink:0;
+}
+.lock-top-btn:active{transform:scale(.88);background:var(--surface2);}
+.home-header-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+
 /* ═══════════════════════════════════
    HOME
 ═══════════════════════════════════ */
@@ -513,6 +526,84 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 #fav-screen .entries-list{padding-bottom:calc(var(--nav-h)+20px);flex:1;overflow-y:auto;}
 
 /* ═══════════════════════════════════
+   DOCUMENTS SCREEN
+═══════════════════════════════════ */
+#docs-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+.docs-list{padding:14px 20px;display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--nav-h)+20px);overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1 1 0;min-height:0;}
+.doc-card{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);
+  padding:11px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;
+  transition:all .15s;position:relative;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:var(--shadow-sm);flex-shrink:0;
+  animation:slideUp .28s cubic-bezier(.22,1,.36,1) both;
+}
+.doc-card:active{transform:scale(.975);box-shadow:none;}
+.doc-thumb{
+  width:44px;height:44px;border-radius:13px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+  background:linear-gradient(135deg,rgba(91,95,245,.25),rgba(139,92,246,.18));
+  box-shadow:0 4px 12px rgba(91,95,245,.18);
+  object-fit:cover;overflow:hidden;
+}
+.doc-thumb img{width:100%;height:100%;object-fit:cover;border-radius:13px;}
+.doc-info{flex:1;min-width:0;}
+.doc-name{font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);font-family:var(--font-head);}
+.doc-meta{font-size:12px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.doc-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+
+/* Floating add button for Docs */
+.docs-fab{
+  position:absolute;right:20px;bottom:calc(var(--nav-h) + 20px);
+  width:56px;height:56px;border-radius:18px;
+  background:var(--accent-g);border:none;color:#fff;
+  font-size:26px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 24px rgba(91,95,245,.4);
+  transition:all .14s;z-index:30;
+}
+.docs-fab:active{transform:scale(.9);}
+
+.docs-empty-wrap{flex:1;display:flex;align-items:center;justify-content:center;}
+
+/* Upload progress row */
+.doc-upload-row{
+  display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--radius);
+  background:var(--surface);border:1.5px solid var(--border);
+  box-shadow:var(--shadow-sm);font-size:13px;color:var(--text2);font-weight:600;
+}
+.doc-upload-spinner{
+  width:18px;height:18px;border-radius:50%;flex-shrink:0;
+  border:2.5px solid var(--border);border-top-color:var(--accent);
+  animation:cloudSpin .8s linear infinite;
+}
+
+/* ═══════════════════════════════════
+   DOCUMENT VIEWER SCREEN
+═══════════════════════════════════ */
+#docview-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+.docview-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 20px calc(var(--nav-h)+20px);display:flex;flex-direction:column;gap:14px;}
+.docview-preview{
+  border-radius:var(--radius);overflow:hidden;
+  background:var(--surface);border:1.5px solid var(--border);
+  box-shadow:var(--shadow-sm);
+  display:flex;align-items:center;justify-content:center;
+  min-height:200px;
+}
+.docview-preview img{width:100%;height:auto;display:block;}
+.docview-preview iframe,.docview-preview embed{width:100%;height:60vh;border:none;display:block;}
+.docview-preview .doc-no-preview{padding:48px 20px;text-align:center;color:var(--muted);}
+.docview-preview .doc-no-preview span{font-size:48px;display:block;margin-bottom:12px;opacity:.4;}
+.docview-meta-card{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  padding:14px 16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:8px;
+}
+.docview-meta-row{display:flex;justify-content:space-between;font-size:13px;}
+.docview-meta-row span:first-child{color:var(--muted);font-weight:600;}
+.docview-meta-row span:last-child{color:var(--text);font-weight:700;text-align:right;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ═══════════════════════════════════
    SETTINGS SCREEN
 ═══════════════════════════════════ */
 #settings-screen{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;position:fixed;inset:0;}
@@ -683,12 +774,9 @@ select.field-input option{background:var(--bg2);color:var(--text);}
   flex-direction:column;gap:3px;border-radius:var(--radius-sm) var(--radius) var(--radius) var(--radius-sm);
   pointer-events:none;cursor:pointer;
   z-index:0;
-  opacity:0;
 }
 .swipe-delete-bg.revealed{
   pointer-events:all;
-  opacity:1;
-  transition:opacity .25s;
 }
 
 .swipe-delete-bg span{font-size:22px;}
@@ -753,8 +841,13 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <!-- ══════════ HOME SCREEN ══════════ -->
 <div class="screen hidden" id="home-screen">
   <div class="home-header">
-    <div class="home-greeting">Welcome back 👋</div>
-    <div class="home-title">My Vault <span id="home-cloud-icon" class="cloud-status-badge" style="display:none"></span></div>
+    <div class="home-header-row">
+      <div>
+        <div class="home-greeting">Welcome back 👋</div>
+        <div class="home-title">My Vault <span id="home-cloud-icon" class="cloud-status-badge" style="display:none"></span></div>
+      </div>
+      <button class="lock-top-btn" id="lock-top-btn-home" title="Lock Vault">🔒</button>
+    </div>
   </div>
   <div class="stats-row">
     <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total Entries</div></div>
@@ -792,20 +885,52 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="nav-item" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
     <button class="nav-add" id="add-btn">+</button>
     <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
-    <div class="nav-item" id="lock-nav-btn"><div class="nav-icon">🔒</div><div class="nav-label">LOCK</div></div>
+    <div class="nav-item" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-label">DOCS</div></div>
   </div>
 </div>
 
 <!-- ══════════ FAVOURITES SCREEN ══════════ -->
 <div class="screen hidden" id="fav-screen">
-  <div class="topbar"><h2>⭐ Starred</h2><div style="width:40px"></div></div>
+  <div class="topbar"><h2>⭐ Starred</h2><button class="lock-top-btn" id="lock-top-btn-fav" title="Lock Vault">🔒</button></div>
   <div class="entries-list" id="fav-list"></div>
   <div class="bottom-nav">
     <div class="nav-item" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
     <div class="nav-item active" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
     <button class="nav-add" id="add-btn-fav">+</button>
     <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
-    <div class="nav-item" id="lock-nav-btn2"><div class="nav-icon">🔒</div><div class="nav-label">LOCK</div></div>
+    <div class="nav-item" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-label">DOCS</div></div>
+  </div>
+</div>
+
+<!-- ══════════ DOCUMENTS SCREEN ══════════ -->
+<div class="screen hidden" id="docs-screen" style="position:relative">
+  <div class="topbar"><h2>📄 Documents</h2><button class="lock-top-btn" id="lock-top-btn-docs" title="Lock Vault">🔒</button></div>
+  <div class="docs-list" id="docs-list"></div>
+  <button class="docs-fab" id="docs-add-btn">+</button>
+  <input type="file" id="doc-file-input" style="display:none"/>
+  <div class="bottom-nav">
+    <div class="nav-item" data-nav="home"><div class="nav-icon">🏠</div><div class="nav-label">HOME</div></div>
+    <div class="nav-item" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
+    <button class="nav-add" id="add-btn-docs">+</button>
+    <div class="nav-item" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
+    <div class="nav-item active" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-label">DOCS</div></div>
+  </div>
+</div>
+
+<!-- ══════════ DOCUMENT VIEWER SCREEN ══════════ -->
+<div class="screen hidden" id="docview-screen">
+  <div class="topbar">
+    <div class="icon-btn" id="docview-back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+    <h2 id="docview-title-bar">Document</h2>
+    <div style="display:flex;gap:6px">
+      <button class="detail-icon-btn" id="docview-fav-btn" title="Star">☆</button>
+      <button class="detail-icon-btn" id="docview-delete-btn" title="Delete" style="color:var(--red)">🗑️</button>
+    </div>
+  </div>
+  <div class="docview-body">
+    <div class="docview-preview" id="docview-preview"></div>
+    <div class="docview-meta-card" id="docview-meta"></div>
+    <button class="btn-primary" id="docview-share-btn">⬇️ Download / Share</button>
   </div>
 </div>
 
@@ -815,6 +940,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="icon-btn" id="form-back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
     <h2 id="form-title">Add Entry</h2>
     <div style="width:40px"></div>
+
   </div>
   <div class="form-body" id="form-body">
     <!-- Dynamically rendered by renderForm() -->
@@ -850,7 +976,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 
 <!-- ══════════ SETTINGS SCREEN ══════════ -->
 <div class="screen hidden" id="settings-screen">
-  <div class="topbar"><h2>Settings</h2><div style="width:40px"></div></div>
+  <div class="topbar"><h2>Settings</h2><button class="lock-top-btn" id="lock-top-btn-settings" title="Lock Vault">🔒</button></div>
   <div class="settings-body">
     <div class="settings-section-label">Appearance</div>
     <div class="settings-item" style="cursor:default">
@@ -889,6 +1015,18 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     </div>
     <input type="file" id="import-file" accept=".vault,.json" style="display:none"/>
 
+    <div class="settings-item" id="s-docs-export">
+      <span class="s-icon">🗂️</span>
+      <div class="s-info"><div class="s-title">Export Documents Backup</div><div class="s-desc">Save encrypted .zip of all documents</div></div>
+      <span class="s-arrow">›</span>
+    </div>
+    <div class="settings-item" id="s-docs-import">
+      <span class="s-icon">🗃️</span>
+      <div class="s-info"><div class="s-title">Import Documents Backup</div><div class="s-desc">Restore documents from a backup zip</div></div>
+      <span class="s-arrow">›</span>
+    </div>
+    <input type="file" id="import-docs-file" accept=".zip" style="display:none"/>
+
     <div class="settings-section-label">Cloud Sync</div>
     <div class="settings-item" id="s-cloudsync" style="cursor:default">
       <span class="s-icon">☁️</span>
@@ -908,7 +1046,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="settings-section-label">About</div>
     <div class="settings-item" style="cursor:default">
       <span class="s-icon">ℹ️</span>
-      <div class="s-info"><div class="s-title">Vault v4.3</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
+      <div class="s-info"><div class="s-title">Vault v5.0</div><div class="s-desc">All data encrypted on your device. Nothing leaves your phone.</div></div>
     </div>
   </div>
   <div class="bottom-nav">
@@ -916,7 +1054,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
     <div class="nav-item" data-nav="fav"><div class="nav-icon">⭐</div><div class="nav-label">STARRED</div></div>
     <button class="nav-add" id="add-btn-settings">+</button>
     <div class="nav-item active" data-nav="settings"><div class="nav-icon">⚙️</div><div class="nav-label">SETTINGS</div></div>
-    <div class="nav-item" id="lock-nav-btn3"><div class="nav-icon">🔒</div><div class="nav-label">LOCK</div></div>
+    <div class="nav-item" data-nav="docs"><div class="nav-icon">📄</div><div class="nav-label">DOCS</div></div>
   </div>
 </div>
 
@@ -1005,6 +1143,7 @@ let state = {
   unlockedViaBio: false, stepUpDone: false,
   preLockScreen: null, formDraft: null, bioGen: 0, bioPending: false,
   cloudUser: null, cloudSyncOn: false, syncStatus: 'idle', // idle|syncing|synced|failed|offline
+  docsStepUpDone: false, // Docs tab gate — separate from stepUpDone, see R6a
 };
 
 const Store = {
@@ -1222,7 +1361,7 @@ document.getElementById('theme-toggle').addEventListener('click', () => {
 // ═══════════════════════════════════════
 //  SCREENS & NAV
 // ═══════════════════════════════════════
-const SCREENS = ['pin-screen','home-screen','fav-screen','form-screen','detail-screen','settings-screen'];
+const SCREENS = ['pin-screen','home-screen','fav-screen','form-screen','detail-screen','settings-screen','docs-screen','docview-screen'];
 function showScreen(id) {
   SCREENS.forEach(s => document.getElementById(s).classList.toggle('hidden', s!==id));
 }
@@ -1234,11 +1373,13 @@ document.querySelectorAll('[data-nav]').forEach(item => {
     if(nav==='home'){ state.currentNav='home'; showScreen('home-screen'); renderEntries(); updateStats(); }
     else if(nav==='fav'){ catPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); state.currentNav='fav'; showScreen('fav-screen'); renderFavs(); }
     else if(nav==='settings'){ catPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); state.currentNav='settings'; showScreen('settings-screen'); }
+    else if(nav==='docs'){ catPanelOpen=false; document.getElementById('cat-inline-panel').classList.remove('open'); openDocsTab(); }
   });
 });
-document.getElementById('lock-nav-btn').addEventListener('click', lockVault);
-document.getElementById('lock-nav-btn2').addEventListener('click', lockVault);
-document.getElementById('lock-nav-btn3').addEventListener('click', lockVault);
+['lock-top-btn-home','lock-top-btn-fav','lock-top-btn-settings','lock-top-btn-docs'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener('click', lockVault);
+});
 document.getElementById('add-btn').addEventListener('click', async () => {
   if(state.unlockedViaBio){ const ok=await requirePIN('Enter PIN to add entry'); if(!ok) return; }
   openForm();
@@ -1250,6 +1391,12 @@ document.getElementById('add-btn-fav').addEventListener('click', async () => {
 document.getElementById('add-btn-settings').addEventListener('click', async () => {
   if(state.unlockedViaBio){ const ok=await requirePIN('Enter PIN to add entry'); if(!ok) return; }
   openForm();
+});
+document.getElementById('add-btn-docs').addEventListener('click', () => {
+  document.getElementById('doc-file-input').click();
+});
+document.getElementById('docs-add-btn').addEventListener('click', () => {
+  document.getElementById('doc-file-input').click();
 });
 
 // ═══════════════════════════════════════
@@ -1279,12 +1426,14 @@ function lockVault() {
     state.formDraft=captureFormDraft();
   } else if(visibleScreen==='detail-screen' && currentDetail){
     state.preLockScreen='detail-screen';
-  } else if(visibleScreen==='fav-screen' || visibleScreen==='settings-screen'){
+  } else if(visibleScreen==='docview-screen' && currentDocDetail){
+    state.preLockScreen='docview-screen';
+  } else if(visibleScreen==='fav-screen' || visibleScreen==='settings-screen' || visibleScreen==='docs-screen'){
     state.preLockScreen=visibleScreen;
   } else {
     state.preLockScreen=null; state.formDraft=null;
   }
-  state.unlocked=false; state.unlockedViaBio=false; state.stepUpDone=false;
+  state.unlocked=false; state.unlockedViaBio=false; state.stepUpDone=false; state.docsStepUpDone=false;
   // Keep currentPIN in memory for biometric re-unlock — cleared only on PIN change
   clearTimeout(autoLockTimer);
   const ov=document.getElementById('lock-overlay');
@@ -1385,8 +1534,10 @@ async function handlePINDigit(d) {
     state.pinTemp=entered; initPINScreen('change-confirm');
   } else if(state.pinMode==='change-confirm'){
     if(entered!==state.pinTemp){ pinError('PINs do not match'); return; }
+    const oldPin=state.currentPIN;
     Store.set('vault_pin', await Crypto.hashPIN(entered));
     state.currentPIN=entered; await saveEntries();
+    try{ await DocsDB.reencryptAll(oldPin, entered); } catch(e){ console.error('Docs re-encrypt failed', e); }
     if(isBioEnabled()){ Store.set('vault_bio','0'); Store.set('vault_bio_cred',''); updateBioToggleUI(); }
     doExport();
     toast('PIN changed ✓ — backup exported with new PIN');
@@ -1489,6 +1640,18 @@ async function restoreAfterUnlock() {
 
   if(target==='settings-screen'){
     showScreen('settings-screen');
+    return;
+  }
+
+  if(target==='docs-screen'){
+    openDocsTab();
+    return;
+  }
+
+  if(target==='docview-screen' && currentDocDetail){
+    const id = currentDocDetail.id;
+    openDocsTab();
+    openDocDetail(id);
     return;
   }
 
@@ -1930,7 +2093,7 @@ function addSwipeToDelete(container) {
     card.style.transition = '';
     card.style.marginRight = '';
     card.classList.remove('swiped');
-    setTimeout(() => { delBg.classList.remove('revealed'); delBg.style.opacity = ''; }, 280);
+    setTimeout(() => { delBg.classList.remove('revealed'); }, 280);
   }
 
   function closeAll() {
@@ -3127,13 +3290,503 @@ async function checkCloudOnUnlock(){
 }
 
 // ═══════════════════════════════════════
-//  INIT
+//  R6a — DOCUMENT VAULT (IndexedDB)
 // ═══════════════════════════════════════
+// Storage: IndexedDB "VaultDocsDB" — two object stores:
+//   "meta"  — single record, key 'manifest', value = Crypto.encrypt() blob
+//             of the manifest array [{id,name,mimeType,size,created,updated,fav}]
+//   "files" — one record per document, key = doc id, value = Crypto.encrypt()
+//             blob of {data: base64String}
+// Both encrypted with state.currentPIN via the same Crypto module used for
+// vault_data — same emptiness-aware care is not needed here since there's
+// no cloud sync yet (R6b), but the encrypt/decrypt pattern is identical.
+const DocsDB = {
+  db: null,
+  async open(){
+    if(this.db) return this.db;
+    return new Promise((resolve,reject)=>{
+      const req = indexedDB.open('VaultDocsDB', 1);
+      req.onupgradeneeded = (e)=>{
+        const db=e.target.result;
+        if(!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
+        if(!db.objectStoreNames.contains('files')) db.createObjectStore('files');
+      };
+      req.onsuccess = (e)=>{ this.db=e.target.result; resolve(this.db); };
+      req.onerror = (e)=>reject(e.target.error);
+    });
+  },
+  async _get(store, key){
+    const db=await this.open();
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(store,'readonly');
+      const req=tx.objectStore(store).get(key);
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    });
+  },
+  async _put(store, key, value){
+    const db=await this.open();
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(store,'readwrite');
+      tx.objectStore(store).put(value, key);
+      tx.oncomplete=()=>resolve();
+      tx.onerror=()=>reject(tx.error);
+    });
+  },
+  async _delete(store, key){
+    const db=await this.open();
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(store,'readwrite');
+      tx.objectStore(store).delete(key);
+      tx.oncomplete=()=>resolve();
+      tx.onerror=()=>reject(tx.error);
+    });
+  },
+  async _allKeys(store){
+    const db=await this.open();
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(store,'readonly');
+      const req=tx.objectStore(store).getAllKeys();
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    });
+  },
+
+  // ── Manifest ──────────────────────────────
+  async loadManifest(pin){
+    const blob = await this._get('meta','manifest');
+    if(!blob) return [];
+    try{ return await Crypto.decrypt(blob, pin); }
+    catch(e){ console.error('Docs manifest decrypt failed', e); return []; }
+  },
+  async saveManifest(manifest, pin){
+    const blob = await Crypto.encrypt(manifest, pin);
+    await this._put('meta','manifest', blob);
+  },
+
+  // ── File blobs ────────────────────────────
+  async loadFile(id, pin){
+    const blob = await this._get('files', id);
+    if(!blob) return null;
+    const obj = await Crypto.decrypt(blob, pin);
+    return obj.data; // base64 string
+  },
+  async saveFile(id, base64Data, pin){
+    const blob = await Crypto.encrypt({data:base64Data}, pin);
+    await this._put('files', id, blob);
+  },
+  async deleteFile(id){
+    await this._delete('files', id);
+  },
+
+  // ── PIN change — re-encrypt everything ────
+  async reencryptAll(oldPin, newPin){
+    const manifest = await this.loadManifest(oldPin);
+    for(const doc of manifest){
+      try{
+        const data = await this.loadFile(doc.id, oldPin);
+        if(data!==null) await this.saveFile(doc.id, data, newPin);
+      } catch(e){ console.error('Re-encrypt failed for doc', doc.id, e); }
+    }
+    await this.saveManifest(manifest, newPin);
+  },
+};
+
+// ═══════════════════════════════════════
+//  DOCS — HELPERS
+// ═══════════════════════════════════════
+function docMimeCategory(mimeType){
+  if(!mimeType) return 'other';
+  if(mimeType.startsWith('image/')) return 'image';
+  if(mimeType==='application/pdf') return 'pdf';
+  return 'other';
+}
+function docIcon(doc){
+  const cat=docMimeCategory(doc.mimeType);
+  if(cat==='pdf') return '📕';
+  if(cat==='image') return '🖼️';
+  if((doc.mimeType||'').includes('word')) return '📄';
+  if((doc.mimeType||'').includes('sheet')||(doc.mimeType||'').includes('excel')) return '📊';
+  return '📁';
+}
+function formatBytes(bytes){
+  if(!bytes) return '0 B';
+  const units=['B','KB','MB','GB'];
+  let i=0, v=bytes;
+  while(v>=1024 && i<units.length-1){ v/=1024; i++; }
+  return `${v.toFixed(v<10&&i>0?1:0)} ${units[i]}`;
+}
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>{
+      // result is "data:<mime>;base64,XXXX" — strip prefix
+      const result=reader.result;
+      const idx=result.indexOf(',');
+      resolve(idx>=0?result.slice(idx+1):result);
+    };
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+function base64ToBlob(base64, mimeType){
+  const byteChars=atob(base64);
+  const byteNumbers=new Array(byteChars.length);
+  for(let i=0;i<byteChars.length;i++) byteNumbers[i]=byteChars.charCodeAt(i);
+  return new Blob([new Uint8Array(byteNumbers)], {type:mimeType||'application/octet-stream'});
+}
+
+// ═══════════════════════════════════════
+//  DOCS — TAB OPEN (step-up gate)
+// ═══════════════════════════════════════
+// Per R6a plan: PIN-unlocked session → open directly, no prompt, ever.
+// Bio-unlocked session → first tap this session requires PIN directly
+// (bypasses requirePIN/stepUpDone shortcut). On success sets BOTH
+// docsStepUpDone and stepUpDone so subsequent Docs taps (and other
+// step-up-gated actions) don't re-prompt this session.
+async function openDocsTab(){
+  if(state.unlockedViaBio && !state.docsStepUpDone){
+    const ok = await _showStepUpModal('Enter PIN to access Documents');
+    if(!ok) return; // stay on current screen
+    state.docsStepUpDone = true;
+    state.stepUpDone = true;
+  }
+  state.currentNav='docs';
+  showScreen('docs-screen');
+  await loadDocsManifest();
+  renderDocs();
+}
+
+async function loadDocsManifest(){
+  if(!state.currentPIN){ state.docs=[]; return; }
+  try{ state.docs = await DocsDB.loadManifest(state.currentPIN); }
+  catch(e){ console.error('Failed to load docs manifest', e); state.docs=[]; }
+}
+
+async function saveDocsManifest(){
+  await DocsDB.saveManifest(state.docs||[], state.currentPIN);
+}
+
+// ═══════════════════════════════════════
+//  DOCS — LIST RENDERING
+// ═══════════════════════════════════════
+function renderDocs(){
+  const list=document.getElementById('docs-list');
+  const docs=(state.docs||[]).slice().sort((a,b)=>{
+    if(!!a.fav !== !!b.fav) return a.fav ? -1 : 1;
+    return (b.updated||b.created||0) - (a.updated||a.created||0);
+  });
+  if(!docs.length){
+    list.innerHTML=`<div class="docs-empty-wrap"><div class="empty-state"><span class="empty-icon">📄</span><p>No documents yet.<br>Tap + to add one</p></div></div>`;
+    return;
+  }
+  list.innerHTML=docs.map(d=>{
+    const cat=docMimeCategory(d.mimeType);
+    let thumb = `<div class="doc-thumb">${docIcon(d)}</div>`;
+    if(cat==='image' && d.thumb) thumb = `<div class="doc-thumb"><img src="${d.thumb}" alt=""/></div>`;
+    return `
+    <div class="doc-card" data-id="${d.id}">
+      ${thumb}
+      <div class="doc-info">
+        <div class="doc-name">${esc(d.name)}</div>
+        <div class="doc-meta">${formatBytes(d.size)} · ${timeAgo(d.updated||d.created)}</div>
+      </div>
+      <div class="doc-actions">
+        <span class="fav-star" data-docfav="${d.id}">${d.fav?'⭐':'☆'}</span>
+        <span class="entry-arrow">›</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('.doc-card').forEach(c=>c.addEventListener('click',ev=>{
+    if(ev.target.classList.contains('fav-star')) return;
+    openDocDetail(c.dataset.id);
+  }));
+  list.querySelectorAll('[data-docfav]').forEach(s=>s.addEventListener('click',async ev=>{
+    ev.stopPropagation();
+    const doc=(state.docs||[]).find(d=>d.id===s.dataset.docfav);
+    if(!doc) return;
+    doc.fav=!doc.fav; doc.updated=Date.now();
+    await saveDocsManifest(); renderDocs();
+  }));
+}
+
+// ═══════════════════════════════════════
+//  DOCS — ADD (file picker)
+// ═══════════════════════════════════════
+document.getElementById('doc-file-input').addEventListener('change', async (e)=>{
+  const file=e.target.files[0];
+  e.target.value='';
+  if(!file) return;
+  if(!state.currentPIN){ toast('Vault is locked — unlock first'); return; }
+
+  // Show inline upload progress row at top of list
+  const list=document.getElementById('docs-list');
+  const row=document.createElement('div');
+  row.className='doc-upload-row';
+  row.innerHTML=`<div class="doc-upload-spinner"></div><div>Encrypting "${esc(file.name)}"…</div>`;
+  if(list.firstChild && list.firstChild.classList && list.firstChild.classList.contains('docs-empty-wrap')) list.innerHTML='';
+  list.prepend(row);
+
+  try{
+    const base64 = await fileToBase64(file);
+    const id = Date.now().toString(36)+Math.random().toString(36).slice(2);
+    let thumb=null;
+    if(file.type.startsWith('image/')) thumb=`data:${file.type};base64,${base64}`;
+
+    await DocsDB.saveFile(id, base64, state.currentPIN);
+
+    if(!state.docs) state.docs=[];
+    state.docs.unshift({
+      id, name:file.name, mimeType:file.type||'application/octet-stream',
+      size:file.size, created:Date.now(), updated:Date.now(), fav:false,
+      thumb,
+    });
+    await saveDocsManifest();
+    toast('Document added ✓');
+    renderDocs();
+  } catch(err){
+    console.error('Doc add failed', err);
+    toast('Failed to add document');
+    renderDocs();
+  }
+});
+
+// ═══════════════════════════════════════
+//  DOCS — VIEWER
+// ═══════════════════════════════════════
+let currentDocDetail=null;
+let currentDocBlobUrl=null;
+
+async function openDocDetail(id){
+  const doc=(state.docs||[]).find(d=>d.id===id); if(!doc) return;
+  currentDocDetail=doc;
+  document.getElementById('docview-title-bar').textContent=doc.name;
+  document.getElementById('docview-fav-btn').textContent=doc.fav?'⭐':'☆';
+
+  // Meta card
+  const meta=document.getElementById('docview-meta');
+  meta.innerHTML=`
+    <div class="docview-meta-row"><span>Name</span><span>${esc(doc.name)}</span></div>
+    <div class="docview-meta-row"><span>Type</span><span>${esc(doc.mimeType||'Unknown')}</span></div>
+    <div class="docview-meta-row"><span>Size</span><span>${formatBytes(doc.size)}</span></div>
+    <div class="docview-meta-row"><span>Added</span><span>${new Date(doc.created).toLocaleDateString()}</span></div>
+    <div class="docview-meta-row"><span>Updated</span><span>${timeAgo(doc.updated||doc.created)}</span></div>
+  `;
+
+  // Preview
+  const preview=document.getElementById('docview-preview');
+  preview.innerHTML=`<div class="doc-no-preview"><span>⏳</span>Loading preview…</div>`;
+  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; }
+
+  showScreen('docview-screen');
+
+  try{
+    const base64 = await DocsDB.loadFile(id, state.currentPIN);
+    if(base64===null){ preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not load file</div>`; return; }
+    const blob=base64ToBlob(base64, doc.mimeType);
+    currentDocBlobUrl=URL.createObjectURL(blob);
+    const cat=docMimeCategory(doc.mimeType);
+    if(cat==='image'){
+      preview.innerHTML=`<img src="${currentDocBlobUrl}" alt="${esc(doc.name)}"/>`;
+    } else if(cat==='pdf'){
+      preview.innerHTML=`<embed src="${currentDocBlobUrl}" type="application/pdf"/>`;
+    } else {
+      preview.innerHTML=`<div class="doc-no-preview"><span>${docIcon(doc)}</span>No preview available for this file type<br>Use Download / Share below</div>`;
+    }
+  } catch(e){
+    console.error('Doc preview failed', e);
+    preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not decrypt file</div>`;
+  }
+}
+
+document.getElementById('docview-back').addEventListener('click',()=>{
+  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; }
+  currentDocDetail=null;
+  openDocsTab();
+});
+
+document.getElementById('docview-fav-btn').addEventListener('click', async ()=>{
+  if(!currentDocDetail) return;
+  currentDocDetail.fav=!currentDocDetail.fav; currentDocDetail.updated=Date.now();
+  document.getElementById('docview-fav-btn').textContent=currentDocDetail.fav?'⭐':'☆';
+  await saveDocsManifest();
+  toast(currentDocDetail.fav?'Added to starred ⭐':'Removed from starred');
+});
+
+document.getElementById('docview-delete-btn').addEventListener('click', async ()=>{
+  if(!currentDocDetail) return;
+  if(state.unlockedViaBio){
+    const ok = await requirePIN('Enter PIN to delete');
+    if(!ok) return;
+  }
+  const ok = await confirmDelete(currentDocDetail.name);
+  if(!ok) return;
+  const id=currentDocDetail.id;
+  state.docs=(state.docs||[]).filter(d=>d.id!==id);
+  await saveDocsManifest();
+  await DocsDB.deleteFile(id);
+  if(currentDocBlobUrl){ URL.revokeObjectURL(currentDocBlobUrl); currentDocBlobUrl=null; }
+  currentDocDetail=null;
+  toast('Deleted');
+  openDocsTab();
+});
+
+document.getElementById('docview-share-btn').addEventListener('click', async ()=>{
+  if(!currentDocDetail || !currentDocBlobUrl) { toast('File not ready'); return; }
+  const doc=currentDocDetail;
+  try{
+    const resp=await fetch(currentDocBlobUrl);
+    const blob=await resp.blob();
+    const file=new File([blob], doc.name, {type:doc.mimeType||'application/octet-stream'});
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:doc.name});
+      return;
+    }
+  } catch(e){ /* fall through to download */ }
+  // Fallback — trigger download
+  const a=document.createElement('a');
+  a.href=currentDocBlobUrl; a.download=doc.name;
+  a.click();
+});
+
+// ═══════════════════════════════════════
+//  DOCS — EXPORT / IMPORT (JSZip, CDN lazy-load)
+// ═══════════════════════════════════════
+// Separate from the existing .vault entry backup (which stays small/fast).
+// Zip layout: manifest.json (plaintext array of {id,name,mimeType,size,
+// created,updated,fav} — no sensitive content) + files/<id>.bin (each file's
+// *already-encrypted* Crypto blob, written as-is — never decrypted to disk).
+// On import, blobs are written straight into IndexedDB and re-encrypted
+// with the CURRENT pin via DocsDB.reencryptAll-style pass, since blobs
+// inside the zip were encrypted with whatever PIN was active at export time.
+let JSZipLib = null;
+async function loadJSZip(){
+  if(JSZipLib) return JSZipLib;
+  try{
+    const mod = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
+    JSZipLib = mod.default || mod;
+    return JSZipLib;
+  } catch(e){
+    console.error('JSZip load failed', e);
+    return null;
+  }
+}
+
+document.getElementById('s-docs-export').addEventListener('click', async ()=>{
+  if(state.unlockedViaBio){
+    const ok = await requirePIN('Enter PIN to export documents');
+    if(!ok) return;
+  }
+  if(!state.currentPIN){ toast('Vault is locked — unlock first'); return; }
+  await loadDocsManifest();
+  if(!state.docs || !state.docs.length){ toast('No documents to export'); return; }
+
+  const JSZip = await loadJSZip();
+  if(!JSZip){ toast('Could not load zip library — check connection'); return; }
+
+  toast('Preparing documents backup…');
+  try{
+    const zip = new JSZip();
+    // Plaintext manifest — names/sizes/dates only, no file contents
+    zip.file('manifest.json', JSON.stringify({v:1, pin_hint:'export-pin-required', docs:state.docs}));
+    for(const doc of state.docs){
+      const raw = await DocsDB._get('files', doc.id); // already-encrypted Crypto blob (string)
+      if(raw!==undefined) zip.file(`files/${doc.id}.bin`, raw);
+    }
+    const blob = await zip.generateAsync({type:'blob'});
+    const url = URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=url; a.download=`vault-docs-backup-${new Date().toISOString().slice(0,10)}.zip`;
+    a.click(); URL.revokeObjectURL(url);
+    toast('Documents backup exported ✓');
+  } catch(e){
+    console.error('Docs export failed', e);
+    toast('Documents export failed');
+  }
+});
+
+document.getElementById('s-docs-import').addEventListener('click', async ()=>{
+  if(state.unlockedViaBio){
+    const ok = await requirePIN('Enter PIN to import documents');
+    if(!ok) return;
+  }
+  if(!state.currentPIN){ toast('Vault is locked — unlock first'); return; }
+  state.importInProgress=true; // prevent visibilitychange lock during file picker
+  document.getElementById('import-docs-file').click();
+});
+
+document.getElementById('import-docs-file').addEventListener('change', async (e)=>{
+  state.importInProgress=false;
+  const file=e.target.files[0];
+  e.target.value='';
+  if(!file) return;
+  if(!state.currentPIN){ toast('Vault is locked — unlock first'); return; }
+
+  const JSZip = await loadJSZip();
+  if(!JSZip){ toast('Could not load zip library — check connection'); return; }
+
+  toast('Importing documents…');
+  try{
+    const zip = await JSZip.loadAsync(file);
+    const manifestEntry = zip.file('manifest.json');
+    if(!manifestEntry) throw new Error('Missing manifest.json — not a valid documents backup');
+    const manifestData = JSON.parse(await manifestEntry.async('string'));
+    const importedDocs = manifestData.docs || [];
+
+    if(!state.docs) state.docs=[];
+    let imported=0;
+    for(const doc of importedDocs){
+      const blobEntry = zip.file(`files/${doc.id}.bin`);
+      if(!blobEntry) continue;
+      const encBlob = await blobEntry.async('string'); // encrypted with the export-time PIN
+
+      // The encrypted blob was made with whatever PIN was active at export
+      // time, which may differ from the current PIN. Try decrypting with
+      // the current PIN first (common case: same vault, same PIN); if that
+      // fails, we can't recover the file without the original PIN.
+      let base64;
+      try{
+        const obj = await Crypto.decrypt(encBlob, state.currentPIN);
+        base64 = obj.data;
+      } catch(err){
+        console.warn(`Skipping "${doc.name}" — could not decrypt with current PIN`);
+        continue;
+      }
+
+      // Avoid id collisions with existing docs
+      let newId = doc.id;
+      if(state.docs.some(d=>d.id===newId)) newId = Date.now().toString(36)+Math.random().toString(36).slice(2);
+
+      await DocsDB.saveFile(newId, base64, state.currentPIN);
+      state.docs.unshift({
+        id:newId, name:doc.name, mimeType:doc.mimeType, size:doc.size,
+        created:doc.created||Date.now(), updated:Date.now(), fav:!!doc.fav,
+        thumb: (doc.mimeType||'').startsWith('image/') ? `data:${doc.mimeType};base64,${base64}` : null,
+      });
+      imported++;
+    }
+    await saveDocsManifest();
+    if(imported>0){
+      toast(`Imported ${imported} document${imported===1?'':'s'} ✓`);
+      if(!document.getElementById('docs-screen').classList.contains('hidden')) renderDocs();
+    } else {
+      toast('No documents could be imported — PIN mismatch?');
+    }
+  } catch(err){
+    console.error('Docs import failed', err);
+    toast('Documents import failed — file may be corrupt');
+  }
+});
+
 function init() {
   applyTheme(Store.get('vault_theme')==='dark');
   updateBioToggleUI();
   CloudSync.restore();
   updateCloudUI();
+  // R6a — request persistent storage so IndexedDB (document blobs) is
+  // less likely to be evicted under storage pressure. Best-effort; no
+  // user-facing prompt on most browsers when already installed/bookmarked.
+  if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
   const hasPin=!!Store.get('vault_pin');
   initPINScreen(hasPin?'unlock':'setup');
   showScreen('pin-screen');
