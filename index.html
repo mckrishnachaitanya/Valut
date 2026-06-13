@@ -205,6 +205,17 @@ body::after{
 .home-header{padding:52px 20px 0;}
 .home-greeting{font-size:13px;color:var(--muted);font-weight:500;}
 .home-title{font-size:26px;font-weight:800;color:var(--text);letter-spacing:-.5px;margin-top:2px;font-family:var(--font-head);}
+.cloud-status-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;border-radius:9px;font-size:13px;
+  vertical-align:middle;margin-left:2px;
+  background:var(--surface);border:1.5px solid var(--border);
+  box-shadow:var(--shadow-sm);
+}
+.cloud-status-badge.syncing{animation:cloudSpin 1.4s linear infinite;}
+.cloud-status-badge.failed{background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.35);}
+.cloud-status-badge.offline{background:rgba(144,150,184,.14);}
+@keyframes cloudSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
 .stats-row{display:flex;gap:10px;padding:16px 20px;}
 .stat-card{
@@ -740,7 +751,7 @@ select.field-input option{background:var(--bg2);color:var(--text);}
 <div class="screen hidden" id="home-screen">
   <div class="home-header">
     <div class="home-greeting">Welcome back 👋</div>
-    <div class="home-title">My Vault <span id="home-cloud-icon" style="font-size:16px;vertical-align:middle;display:none"></span></div>
+    <div class="home-title">My Vault <span id="home-cloud-icon" class="cloud-status-badge" style="display:none"></span></div>
   </div>
   <div class="stats-row">
     <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total Entries</div></div>
@@ -2667,10 +2678,15 @@ const CloudSync = {
       state.cloudUser = result.user;
       return true;
     } catch(e){
-      if(e.code === 'auth/popup-blocked' || e.code === 'auth/cancelled-popup-request'){
+      if(e.code === 'auth/popup-blocked' || e.code === 'auth/cancelled-popup-request'
+         || e.code === 'auth/operation-not-supported-in-this-environment'){
         try{
+          // Mark that an enable-sync attempt is in flight — the page will
+          // fully reload after redirect, so we pick this up in restore()
+          // via getRedirectResult() and resume reconcile() there.
+          Store.set('vault_sync_pending', '1');
           await this.authMod.signInWithRedirect(this.auth, provider);
-          return true; // page will reload
+          return 'redirecting'; // page is navigating away — caller should not proceed
         } catch(e2){ console.error(e2); }
       }
       if(e.code !== 'auth/popup-closed-by-user') console.error('Sign-in failed', e);
@@ -2687,8 +2703,15 @@ const CloudSync = {
   // ── Enable / disable toggle ────────────────
   async enableSync(){
     const signedIn = await this.signIn();
+    if(signedIn === 'redirecting') return 'redirecting';
     if(!signedIn || !state.cloudUser) return false;
+    return await this.reconcile();
+  },
 
+  // Reconcile local vs remote blob (newer wins), persist sync-on state,
+  // start listener. Used both for immediate (popup) sign-in and for
+  // resuming after a redirect round-trip.
+  async reconcile(){
     Store.set('vault_cloud_uid', state.cloudUser.uid);
     Store.set('vault_cloud_email', state.cloudUser.email||'');
 
@@ -2832,6 +2855,37 @@ const CloudSync = {
 
   // ── Restore on cold start ──────────────────
   async restore(){
+    // Check if we're returning from a signInWithRedirect round-trip
+    // (page fully reloaded, so this is the only way to learn the result).
+    const pending = Store.get('vault_sync_pending')==='1';
+    if(pending){
+      const ok = await this.loadSDK();
+      if(ok){
+        try{
+          const result = await this.authMod.getRedirectResult(this.auth);
+          Store.set('vault_sync_pending','0');
+          if(result && result.user){
+            state.cloudUser = result.user;
+            await this.reconcile();
+          } else {
+            // User backed out / cancelled the redirect — no account chosen
+            state.cloudSyncOn = false;
+            Store.set('vault_cloud_sync','0');
+            toast('Sign-in cancelled');
+          }
+        } catch(e){
+          console.error('Redirect result failed', e);
+          Store.set('vault_sync_pending','0');
+          state.cloudSyncOn = false;
+          Store.set('vault_cloud_sync','0');
+          this.lastError = e;
+          toast('Sign-in failed');
+        }
+        updateCloudUI();
+        return;
+      }
+    }
+
     state.cloudSyncOn = Store.get('vault_cloud_sync')==='1';
     if(!state.cloudSyncOn) return;
     const ok = await this.loadSDK();
@@ -2892,17 +2946,18 @@ function updateCloudUI(){
       idle:`Synced ${formatSyncTime(lastSync)}`,
     };
     statusLine.textContent = lines[state.syncStatus] || lines.idle;
-    statusLine.style.color = state.syncStatus==='failed' ? 'var(--red)' : 'var(--muted)';
+    statusLine.style.color = state.syncStatus==='failed' ? '#f59e0b' : 'var(--muted)';
 
     if(homeIcon){
-      const icons = { syncing:'🔄', synced:'☁️', failed:'❌', offline:'📴', idle:'☁️' };
+      const icons = { syncing:'🔄', synced:'☁️', failed:'⚠️', offline:'📴', idle:'☁️' };
       homeIcon.textContent = icons[state.syncStatus] || '☁️';
-      homeIcon.style.display = 'inline';
+      homeIcon.className = 'cloud-status-badge ' + (state.syncStatus||'idle');
+      homeIcon.style.display = 'inline-flex';
     }
   } else {
     statusItem.classList.add('hidden');
     deleteItem.classList.add('hidden');
-    if(homeIcon) homeIcon.style.display = 'none';
+    if(homeIcon){ homeIcon.style.display = 'none'; homeIcon.className = 'cloud-status-badge'; homeIcon.textContent=''; }
   }
 }
 
@@ -2914,6 +2969,7 @@ document.getElementById('cloud-toggle').addEventListener('click', async ()=>{
     document.getElementById('cloud-toggle').classList.add('on'); // optimistic
     document.getElementById('cloud-desc').textContent = 'Signing in…';
     const ok = await CloudSync.enableSync();
+    if(ok === 'redirecting') return; // page is navigating to Google — nothing more to do
     if(!ok){
       document.getElementById('cloud-toggle').classList.remove('on');
       document.getElementById('cloud-desc').textContent = 'Sign in with Google to sync across devices';
