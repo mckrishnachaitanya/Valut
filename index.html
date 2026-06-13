@@ -2655,6 +2655,12 @@ const CloudSync = {
   async signIn(){
     const ok = await this.loadSDK();
     if(!ok){ toast('Could not load cloud sync — check connection'); return false; }
+    // Already authenticated (e.g. retry after a Firestore-level failure) —
+    // no need to show the account picker again.
+    if(this.auth.currentUser){
+      state.cloudUser = this.auth.currentUser;
+      return true;
+    }
     const provider = new this.authMod.GoogleAuthProvider();
     try{
       const result = await this.authMod.signInWithPopup(this.auth, provider);
@@ -2723,9 +2729,13 @@ const CloudSync = {
     } catch(e){
       console.error('Initial sync failed', e);
       this.setStatus('failed');
-      state.cloudSyncOn = true; // still consider it on; will retry
-      Store.set('vault_cloud_sync', '1');
-      return true;
+      this.lastError = e;
+      // Don't force sync "on" if we couldn't even complete initial setup —
+      // leave the toggle off so the user gets a clear failure instead of
+      // a permanently-stuck "Sync failed" state.
+      state.cloudSyncOn = false;
+      Store.set('vault_cloud_sync', '0');
+      return false;
     }
   },
 
@@ -2907,7 +2917,14 @@ document.getElementById('cloud-toggle').addEventListener('click', async ()=>{
     if(!ok){
       document.getElementById('cloud-toggle').classList.remove('on');
       document.getElementById('cloud-desc').textContent = 'Sign in with Google to sync across devices';
-      toast('Sign-in cancelled');
+      const err = CloudSync.lastError;
+      if(err && err.code === 'permission-denied'){
+        toast('Permission denied — check Firestore rules');
+      } else if(err){
+        toast('Sync setup failed: ' + (err.code || err.message || 'unknown error'));
+      } else {
+        toast('Sign-in cancelled');
+      }
     } else {
       toast('Cloud sync enabled ☁️');
     }
