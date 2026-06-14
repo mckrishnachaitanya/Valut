@@ -1112,7 +1112,21 @@ const Crypto = {
     const key=await this.deriveKey(pin,raw.slice(0,16));
     const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:raw.slice(16,28)},key,raw.slice(28));
     return JSON.parse(this.dec.decode(pt));
-  }
+  },
+  // Raw binary encrypt/decrypt — no base64/JSON, safe for large files (photos, PDFs).
+  // Stores as plain object {salt:Uint8Array, iv:Uint8Array, ct:ArrayBuffer}
+  // which IndexedDB serialises natively with no size limit issues.
+  async encryptRaw(arrayBuffer, pin) {
+    const salt=crypto.getRandomValues(new Uint8Array(16));
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const key=await this.deriveKey(pin,salt);
+    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,arrayBuffer);
+    return {salt, iv, ct};
+  },
+  async decryptRaw(stored, pin) {
+    const key=await this.deriveKey(pin,stored.salt);
+    return crypto.subtle.decrypt({name:'AES-GCM',iv:stored.iv},key,stored.ct);
+  },
 };
 
 // ═══════════════════════════════════════
@@ -3352,15 +3366,16 @@ const DocsDB = {
   },
 
   // ── File blobs ────────────────────────────
+  // Files stored as {salt, iv, ct} objects — IndexedDB handles ArrayBuffers
+  // natively, no base64/JSON wrapping, no size limits from string encoding.
   async loadFile(id, pin){
-    const blob = await this._get('files', id);
-    if(!blob) return null;
-    const obj = await Crypto.decrypt(blob, pin);
-    return obj.data; // base64 string
+    const stored = await this._get('files', id);
+    if(!stored) return null;
+    return Crypto.decryptRaw(stored, pin); // returns ArrayBuffer
   },
-  async saveFile(id, base64Data, pin){
-    const blob = await Crypto.encrypt({data:base64Data}, pin);
-    await this._put('files', id, blob);
+  async saveFile(id, arrayBuffer, pin){
+    const stored = await Crypto.encryptRaw(arrayBuffer, pin);
+    await this._put('files', id, stored);
   },
   async deleteFile(id){
     await this._delete('files', id);
@@ -3371,8 +3386,8 @@ const DocsDB = {
     const manifest = await this.loadManifest(oldPin);
     for(const doc of manifest){
       try{
-        const data = await this.loadFile(doc.id, oldPin);
-        if(data!==null) await this.saveFile(doc.id, data, newPin);
+        const ab = await this.loadFile(doc.id, oldPin);
+        if(ab!==null) await this.saveFile(doc.id, ab, newPin);
       } catch(e){ console.error('Re-encrypt failed for doc', doc.id, e); }
     }
     await this.saveManifest(manifest, newPin);
@@ -3403,24 +3418,57 @@ function formatBytes(bytes){
   while(v>=1024 && i<units.length-1){ v/=1024; i++; }
   return `${v.toFixed(v<10&&i>0?1:0)} ${units[i]}`;
 }
-function fileToBase64(file){
+function fileToArrayBuffer(file){
   return new Promise((resolve,reject)=>{
     const reader=new FileReader();
-    reader.onload=()=>{
-      // result is "data:<mime>;base64,XXXX" — strip prefix
-      const result=reader.result;
-      const idx=result.indexOf(',');
-      resolve(idx>=0?result.slice(idx+1):result);
-    };
+    reader.onload=()=>resolve(reader.result);
     reader.onerror=reject;
-    reader.readAsDataURL(file);
+    reader.readAsArrayBuffer(file);
   });
 }
-function base64ToBlob(base64, mimeType){
-  const byteChars=atob(base64);
-  const byteNumbers=new Array(byteChars.length);
-  for(let i=0;i<byteChars.length;i++) byteNumbers[i]=byteChars.charCodeAt(i);
-  return new Blob([new Uint8Array(byteNumbers)], {type:mimeType||'application/octet-stream'});
+// Used only by zip export/import (JSZip works with base64 strings)
+function arrayBufferToBase64(ab){
+  const bytes=new Uint8Array(ab);
+  let binary='';
+  // Use chunks to avoid stack overflow on large arrays
+  const CHUNK=8192;
+  for(let i=0;i<bytes.length;i+=CHUNK){
+    binary+=String.fromCharCode(...bytes.subarray(i,i+CHUNK));
+  }
+  return btoa(binary);
+}
+function base64ToArrayBuffer(b64){
+  const binary=atob(b64);
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+  return bytes.buffer;
+}
+// For the viewer — turn decrypted ArrayBuffer directly into a Blob URL
+function arrayBufferToObjectUrl(ab, mimeType){
+  const blob=new Blob([ab],{type:mimeType||'application/octet-stream'});
+  return URL.createObjectURL(blob);
+}
+// For thumbnails — resize image ArrayBuffer to a small data: URI for manifest
+function arrayBufferToThumb(ab, mimeType){
+  return new Promise(resolve=>{
+    try{
+      const blob=new Blob([ab],{type:mimeType});
+      const url=URL.createObjectURL(blob);
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=80;
+        const scale=Math.min(1,MAX/Math.max(img.width,img.height));
+        const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
+        const canvas=document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL('image/jpeg',0.7));
+      };
+      img.onerror=()=>{ URL.revokeObjectURL(url); resolve(null); };
+      img.src=url;
+    } catch(e){ resolve(null); }
+  });
 }
 
 // ═══════════════════════════════════════
@@ -3517,12 +3565,14 @@ document.getElementById('doc-file-input').addEventListener('change', async (e)=>
   list.prepend(row);
 
   try{
-    const base64 = await fileToBase64(file);
+    const arrayBuffer = await fileToArrayBuffer(file);
     const id = Date.now().toString(36)+Math.random().toString(36).slice(2);
+    // Small thumbnail from canvas for list display — generated before encryption,
+    // stored in manifest (tiny JPEG data: URI, safe to keep there).
     let thumb=null;
-    if(file.type.startsWith('image/')) thumb=`data:${file.type};base64,${base64}`;
+    if(file.type.startsWith('image/')) thumb = await arrayBufferToThumb(arrayBuffer, file.type);
 
-    await DocsDB.saveFile(id, base64, state.currentPIN);
+    await DocsDB.saveFile(id, arrayBuffer, state.currentPIN);
 
     if(!state.docs) state.docs=[];
     state.docs.unshift({
@@ -3570,10 +3620,9 @@ async function openDocDetail(id){
   showScreen('docview-screen');
 
   try{
-    const base64 = await DocsDB.loadFile(id, state.currentPIN);
-    if(base64===null){ preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not load file</div>`; return; }
-    const blob=base64ToBlob(base64, doc.mimeType);
-    currentDocBlobUrl=URL.createObjectURL(blob);
+    const ab = await DocsDB.loadFile(id, state.currentPIN);
+    if(ab===null){ preview.innerHTML=`<div class="doc-no-preview"><span>⚠️</span>Could not load file</div>`; return; }
+    currentDocBlobUrl = arrayBufferToObjectUrl(ab, doc.mimeType);
     const cat=docMimeCategory(doc.mimeType);
     if(cat==='image'){
       preview.innerHTML=`<img src="${currentDocBlobUrl}" alt="${esc(doc.name)}"/>`;
@@ -3676,13 +3725,21 @@ document.getElementById('s-docs-export').addEventListener('click', async ()=>{
   toast('Preparing documents backup…');
   try{
     const zip = new JSZip();
-    // Plaintext manifest — names/sizes/dates only, no file contents
-    zip.file('manifest.json', JSON.stringify({v:1, pin_hint:'export-pin-required', docs:state.docs}));
+    // manifest.json — metadata for import (names, types, dates, fav)
+    // Thumbs stripped — not needed for restore
+    const exportMeta = state.docs.map(({thumb:_,...rest})=>rest);
+    zip.file('manifest.json', JSON.stringify({v:4, docs:exportMeta}));
+
+    // Real decrypted files stored under their original filenames inside files/
+    // so you can open them directly from the zip without Vault.
+    const filesFolder = zip.folder('files');
     for(const doc of state.docs){
-      const raw = await DocsDB._get('files', doc.id); // already-encrypted Crypto blob (string)
-      if(raw!==undefined) zip.file(`files/${doc.id}.bin`, raw);
+      try{
+        const ab = await DocsDB.loadFile(doc.id, state.currentPIN);
+        if(ab) filesFolder.file(doc.name, ab);
+      } catch(e){ console.warn('Skipping doc in export:', doc.name, e); }
     }
-    const blob = await zip.generateAsync({type:'blob'});
+    const blob = await zip.generateAsync({type:'blob', compression:'DEFLATE', compressionOptions:{level:4}});
     const url = URL.createObjectURL(blob), a=document.createElement('a');
     a.href=url; a.download=`vault-docs-backup-${new Date().toISOString().slice(0,10)}.zip`;
     a.click(); URL.revokeObjectURL(url);
@@ -3699,7 +3756,7 @@ document.getElementById('s-docs-import').addEventListener('click', async ()=>{
     if(!ok) return;
   }
   if(!state.currentPIN){ toast('Vault is locked — unlock first'); return; }
-  state.importInProgress=true; // prevent visibilitychange lock during file picker
+  state.importInProgress=true;
   document.getElementById('import-docs-file').click();
 });
 
@@ -3717,48 +3774,42 @@ document.getElementById('import-docs-file').addEventListener('change', async (e)
   try{
     const zip = await JSZip.loadAsync(file);
     const manifestEntry = zip.file('manifest.json');
-    if(!manifestEntry) throw new Error('Missing manifest.json — not a valid documents backup');
+    if(!manifestEntry) throw new Error('Missing manifest.json');
     const manifestData = JSON.parse(await manifestEntry.async('string'));
     const importedDocs = manifestData.docs || [];
 
     if(!state.docs) state.docs=[];
-    let imported=0;
+    let imported=0, skipped=0;
     for(const doc of importedDocs){
-      const blobEntry = zip.file(`files/${doc.id}.bin`);
-      if(!blobEntry) continue;
-      const encBlob = await blobEntry.async('string'); // encrypted with the export-time PIN
+      // Support both v4 (files/<name>) and older formats (files/<id>.bin)
+      const binEntry = zip.file(`files/${doc.name}`) || zip.file(`files/${doc.id}.bin`);
+      if(!binEntry){ skipped++; continue; }
 
-      // The encrypted blob was made with whatever PIN was active at export
-      // time, which may differ from the current PIN. Try decrypting with
-      // the current PIN first (common case: same vault, same PIN); if that
-      // fails, we can't recover the file without the original PIN.
-      let base64;
-      try{
-        const obj = await Crypto.decrypt(encBlob, state.currentPIN);
-        base64 = obj.data;
-      } catch(err){
-        console.warn(`Skipping "${doc.name}" — could not decrypt with current PIN`);
-        continue;
-      }
+      const ab = await binEntry.async('arraybuffer');
 
-      // Avoid id collisions with existing docs
       let newId = doc.id;
       if(state.docs.some(d=>d.id===newId)) newId = Date.now().toString(36)+Math.random().toString(36).slice(2);
 
-      await DocsDB.saveFile(newId, base64, state.currentPIN);
+      await DocsDB.saveFile(newId, ab, state.currentPIN);
+
+      let thumb=null;
+      if((doc.mimeType||'').startsWith('image/')){
+        try{ thumb = await arrayBufferToThumb(ab, doc.mimeType); } catch(e){}
+      }
       state.docs.unshift({
         id:newId, name:doc.name, mimeType:doc.mimeType, size:doc.size,
         created:doc.created||Date.now(), updated:Date.now(), fav:!!doc.fav,
-        thumb: (doc.mimeType||'').startsWith('image/') ? `data:${doc.mimeType};base64,${base64}` : null,
+        thumb,
       });
       imported++;
     }
     await saveDocsManifest();
     if(imported>0){
-      toast(`Imported ${imported} document${imported===1?'':'s'} ✓`);
+      const msg = skipped>0 ? `Imported ${imported}, skipped ${skipped}` : `Imported ${imported} document${imported===1?'':'s'} ✓`;
+      toast(msg, 3000);
       if(!document.getElementById('docs-screen').classList.contains('hidden')) renderDocs();
     } else {
-      toast('No documents could be imported — PIN mismatch?');
+      toast('No documents found in backup');
     }
   } catch(err){
     console.error('Docs import failed', err);
