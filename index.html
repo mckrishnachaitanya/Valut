@@ -3582,10 +3582,13 @@ document.getElementById('doc-file-input').addEventListener('change', async (e)=>
     });
     await saveDocsManifest();
     toast('Document added ✓');
+    state.currentNav='docs';
+    showScreen('docs-screen');
     renderDocs();
   } catch(err){
     console.error('Doc add failed', err);
     toast('Failed to add document');
+    showScreen('docs-screen');
     renderDocs();
   }
 });
